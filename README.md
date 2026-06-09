@@ -11,7 +11,7 @@ The external system requests the current status of a previously transmitted inst
 
 ## Non functional req
 
-- Fault Tolerance
+- Fault Tolerance S
 
 ## Arhitecture
 
@@ -20,6 +20,10 @@ C4 - Context Map
 
 C4 - container Diagram
 ![Container](/docs/C4-Container.svg)
+
+**Component draft**
+
+![Component draft](./docs/Component.svg)
 
 ## Invariants
 
@@ -37,11 +41,13 @@ amount:                     decimal.Decimal (NUMERIC)
 currency(VO):               char(len 3)
 endToEndIdentification(VO): string(len 1-35) {prefix}.{YYYYMMDD}.{seq}  (ISO 20022)
 transactionType:            int(len 3)
+debitorPAccID:              IBAN
+creditorPAccID:             IBAN
 
 Metadata (VO):              Created_at (), updated_at() 
 ```
 
-###  Payment Party
+### Payment Party
 
 ```
 ID:                     BIC
@@ -50,11 +56,15 @@ countryOfResidence(VO): char(len 2)(ContryCode  ISO 3166-1 alpha-2.)
 name:                   string -not safe typing with `` and other
 ```
 
-#### Payment account (PA)
+### Payment account (PA)
 
 ```
-                        ID:     IBAN 
-                        Account currency(VO): char(len 3)
+ID:     IBAN 
+Account currency(VO): char(len 3)
 ```
+## ER
 
+ER diagram(without outbox)
+
+![ER](./docs/Queue%20manager.svg)
 
