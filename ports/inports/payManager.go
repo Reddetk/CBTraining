@@ -1,5 +1,5 @@
-// Package inports defines the interfaces for the use cases related to payment management
-package inports
+// Package inport defines the interfaces for the use cases related to payment management
+package inport
 
 import "context"
 

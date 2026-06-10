@@ -1,9 +1,10 @@
-package outports
+package outport
 
 import "context"
 
 type PaymentRepo interface {
 	UpserPayment(ctx context.Context, paymentData TXRecord) error
+	GetTXByID(ctx context.Context, TXID string) (*TXRecord, error)
 }
 
 type TXRecord struct {

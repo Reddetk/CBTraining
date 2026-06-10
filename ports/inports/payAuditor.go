@@ -1,9 +1,9 @@
-package inports
+package inport
 
 import "context"
 
 type PayAuditor interface {
-	GetPayment(ctx context.Context, TXID string) (*PaymentInfo, error)
+	GetPaymentInfo(ctx context.Context, TXID string) (*PaymentInfo, error)
 }
 
 type PaymentInfo struct {

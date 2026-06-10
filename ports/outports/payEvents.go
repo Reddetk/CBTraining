@@ -1,5 +1,5 @@
-// Package outports defines the output ports for the payment processing system
-package outports
+// Package outport defines the output ports for the payment processing system
+package outport
 
 import (
 	"context"

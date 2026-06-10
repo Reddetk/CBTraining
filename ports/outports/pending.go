@@ -1,4 +1,4 @@
-package outports
+package outport
 
 import "context"
 

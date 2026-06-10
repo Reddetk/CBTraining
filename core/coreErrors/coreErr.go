@@ -13,3 +13,9 @@ var (
 	ErrContryOfResidenceInvalidLength      = errors.New("country of residence must be 2 characters long")
 	ErrEndToEndIdentificationInvalidFormat = errors.New("endToEndIdentification does not match required format")
 )
+
+// Entity errors
+var (
+	ErrIBANInvalidLength = errors.New("iban must be between 15 and 34 characters long")
+	ErrBICInvalidLength  = errors.New("bic must be either 8 or 11 characters long")
+)
