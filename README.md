@@ -2,6 +2,16 @@
 
 queue management and execution of payment instructions.
 
+## Functional Requirements
+
+1. HTTP REST API for receiving payment instructions
+2. Automatic initiation of payment processing when a processing slot becomes available
+3. Invocation of a handler stub (`processPayment`) simulating actual work (2–5 second delay, 10% error rate)
+4. Payment status updates: `pending` → `processing` → `completed` / `failed`
+5. Endpoint to retrieve payment status by ID
+6. Queue recovery from the database upon service restart (all `pending` payments)
+7. Graceful shutdown – completion of ongoing payments before stopping№№
+
 ## Use-cases
 
 - UC-01: Execute payment instruction
@@ -12,18 +22,6 @@ The external system requests the current status of a previously transmitted inst
 ## Non functional req
 
 - Fault Tolerance S
-
-## Arhitecture
-
-C4 - Context Map
-![ContextMap](/docs/C4-ContextMap.svg)
-
-C4 - container Diagram
-![Container](/docs/C4-Container.svg)
-
-**Component draft**
-
-![Component draft](./docs/Component.svg)
 
 ## Invariants
 
@@ -62,9 +60,62 @@ name:                   string -not safe typing with `` and other
 ID:     IBAN 
 Account currency(VO): char(len 3)
 ```
+
 ## ER
 
 ER diagram(without outbox)
 
 ![ER](./docs/Queue%20manager.svg)
 
+## Arhitecture
+
+**C4 - Context Map**
+
+![ContextMap](/docs/C4-ContextMap.svg)
+
+**C4 - container Diagram**
+
+![Container](/docs/C4-Container.svg)
+
+**Component draft**
+
+*Without outbox its logic stays in secondary adapter*
+
+![Component draft](./docs/Component.svg)
+
+***
+
+**Queue manager**
+
+The service is built around a Dispatcher that routes payment transactions (TX) into isolated Groups based on shared IBANs. Each Group owns a dedicated worker goroutine that processes transactions strictly sequentially — guaranteeing that no two payments sharing a digital account (DA) are processed concurrently.
+
+While holding the mutex, check if a group already exists for each of the two IBANs:
+
+- both are nil — acquire a semaphore slot (semaphore ← struct{}{}), then re-check (TOCTOU!), create a newGroup, launch a worker via `go`, and call `wg.Add(1)`.
+one already exists — simply associate the second IBAN with that same group.
+- both are in the same group — no action needed.
+- in different groups (MERGE) — call `gB.workerCancelSig()`, drain `gB.ch` into `gA.ch` while holding the mutex, and re-associate all IBANs. The `gB` worker will finish processing its current task and exit, releasing the semaphore slot.
+After releasing the mutex — `g.ch ← tx`.
+
+On any exit path, two deferred calls fire in order:
+
+### GroupWorker
+Each worker runs a single for / select loop
+
+1. wg.Done() — decrements the WaitGroup counter.
+2. <-semaphore — releases the worker slot back to the pool.
+
+This ensures the semaphore slot is always released exactly once, regardless of how the worker exits.
+
+### Graceful Shutdown
+Shutdown follows a two-step protocol:
+
+text
+
+1. cancel() - cancels the Dispatcher's root context->  transitively cancels every Group's ctx via WithCancel(parent) -> each worker receives signal on g.ctx.Done() -> worker drains its buffer, then returns
+
+2. d.wg.Wait() - blocks until every wg.Done() has been called -> close DB connections, release resources, exit
+
+This satisfies the graceful shutdown requirement: all in-flight payments complete before the service stops.
+
+![Queue manager ](./docs/ManagerStructure.svg)
