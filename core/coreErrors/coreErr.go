@@ -19,3 +19,9 @@ var (
 	ErrIBANInvalidLength = errors.New("iban must be between 15 and 34 characters long")
 	ErrBICInvalidLength  = errors.New("bic must be either 8 or 11 characters long")
 )
+
+// Service errors
+var (
+	ErrInfrastructure  = errors.New("infrastructure error occurred")
+	ErrPaymentNotFound = errors.New("payment not found")
+)

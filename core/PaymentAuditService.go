@@ -4,6 +4,7 @@ package core
 import (
 	"context"
 
+	corerr "github.com/Reddetk/CBTraining/core/coreErrors"
 	inport "github.com/Reddetk/CBTraining/ports/inports"
 	outport "github.com/Reddetk/CBTraining/ports/outports"
 )
@@ -17,5 +18,19 @@ func NewPaymentAuditService(repo outport.PaymentRepo) *PaymentAuditService {
 }
 
 func (as *PaymentAuditService) GetPaymentInfo(ctx context.Context, TXID string) (*inport.PaymentInfo, error) {
-	return &inport.PaymentInfo{}, nil
+	TXRec, err := as.repo.GetTXByID(ctx, TXID)
+	if err != nil {
+		// TODO: log zap
+		return nil, corerr.ErrInfrastructure
+	}
+	if TXRec == nil {
+		return nil, corerr.ErrPaymentNotFound
+	}
+	return &inport.PaymentInfo{
+		TXID:            TXRec.TXID,
+		Status:          TXRec.Status,
+		CreditorAccount: &inport.PaymentAccountDTO{IBAN: TXRec.CreditorPacc.IBAN, AccCurency: TXRec.CreditorPacc.AccCurency},
+		DebitorAccount:  &inport.PaymentAccountDTO{IBAN: TXRec.DebitorPacc.IBAN, AccCurency: TXRec.DebitorPacc.AccCurency},
+		Metadata:        TXRec.Metadata,
+	}, nil
 }
