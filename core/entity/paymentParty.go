@@ -2,7 +2,7 @@ package entity
 
 import valobj "github.com/Reddetk/CBTraining/core/valObj"
 
-type PaymentTransaction struct {
+type PaymentParty struct {
 	BIC               string
 	role              valobj.Role
 	contryOfResidence valobj.CountryOfResidence

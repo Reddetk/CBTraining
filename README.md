@@ -61,6 +61,37 @@ ID:     IBAN
 Account currency(VO): char(len 3)
 ```
 
+## Kafka Topology
+
+Two topics are used for async communication between the payment service and the processing system
+
+**payment.processing.request**
+Produced by the payment service. Contains payment details sent to the processing system for execution
+
+type TXRequest struct {
+ TXID                   string
+ Status                 string
+ Amount                 decimal.Decimal
+ Currency               string
+ EndToEndIdentification string
+ DebitorIBAN            string
+ CreditorIBAN           string
+ Metadata               string
+}
+
+
+**payment.processing.response**  
+Produced by the processing system. Contains the processing result (SUCCESS / FAILED ) matched by `paymentId`.
+
+type PaymentResult struct {
+ TXID     string
+ Result   string
+ Metadata string
+}
+
+
+Message key: `paymentId` — ensures ordered processing per payment within a single partition.
+
 ## ER
 
 ER diagram(without outbox)

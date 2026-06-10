@@ -11,7 +11,7 @@ type PaymentTX struct {
 	amount                 decimal.Decimal
 	currency               valobj.Currency
 	endToEndIdentification valobj.EndToEndIdentification
-	debitorPaccID          string
-	creditorPaccID         string
+	debitorIBAN            string
+	creditorIBAN           string
 	metadata               valobj.Metadata
 }

@@ -1,0 +1,23 @@
+// Package outports defines the output ports for the payment processing system
+package outports
+
+import (
+	"context"
+
+	"github.com/shopspring/decimal"
+)
+
+type PaymentProcessor interface {
+	ProcessPayment(ctx context.Context, paymentData TXRequest) error
+}
+
+type TXRequest struct {
+	TXID                   string
+	Status                 string
+	Amount                 decimal.Decimal
+	Currency               string
+	EndToEndIdentification string
+	DebitorIBAN            string
+	CreditorIBAN           string
+	Metadata               string
+}
