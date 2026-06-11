@@ -1,0 +1,136 @@
+basePath: /
+definitions:
+  http.ErrorResponse:
+    properties:
+      error:
+        type: string
+    type: object
+  inport.PaymentAccountDTO:
+    properties:
+      accCurency:
+        type: string
+      iban:
+        type: string
+    type: object
+  inport.PaymentInfo:
+    properties:
+      creditorAccount:
+        $ref: '#/definitions/inport.PaymentAccountDTO'
+      debitorAccount:
+        $ref: '#/definitions/inport.PaymentAccountDTO'
+      metadata:
+        type: string
+      status:
+        type: string
+      txid:
+        type: string
+    type: object
+  inport.PaymentPartyDTO:
+    properties:
+      bic:
+        type: string
+      contryOfResidence:
+        type: string
+      name:
+        type: string
+      role:
+        type: string
+    type: object
+  inport.PaymentRequest:
+    properties:
+      amount:
+        type: string
+      creditor:
+        $ref: '#/definitions/inport.PaymentPartyDTO'
+      creditorPacc:
+        $ref: '#/definitions/inport.PaymentAccountDTO'
+      currency:
+        type: string
+      debitor:
+        $ref: '#/definitions/inport.PaymentPartyDTO'
+      debitorPacc:
+        $ref: '#/definitions/inport.PaymentAccountDTO'
+      endToEndIdentification:
+        type: string
+      metadata:
+        type: string
+      status:
+        type: string
+      txid:
+        type: string
+    type: object
+  inport.TXConfirmation:
+    properties:
+      metadata:
+        type: string
+      status:
+        type: string
+      txid:
+        type: string
+    type: object
+host: localhost:8080
+info:
+  contact: {}
+  description: Async payment processing service
+  title: Payment Service API
+  version: "1.0"
+paths:
+  /api/v1/payments:
+    post:
+      consumes:
+      - application/json
+      description: Initiates a payment transaction and sends it to the processing
+        system
+      parameters:
+      - description: Payment request payload
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/inport.PaymentRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/inport.TXConfirmation'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/http.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/http.ErrorResponse'
+      summary: Send payment to processing
+      tags:
+      - payments
+  /api/v1/payments/{txid}:
+    get:
+      description: Returns current status and details of a payment by TXID
+      parameters:
+      - description: Transaction ID
+        in: path
+        name: txid
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/inport.PaymentInfo'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/http.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/http.ErrorResponse'
+      summary: Get payment status
+      tags:
+      - payments
+swagger: "2.0"
