@@ -11,6 +11,7 @@ type PaymentTX struct {
 	amount                 decimal.Decimal
 	currency               valobj.Currency
 	endToEndIdentification valobj.EndToEndIdentification
+	transactionType        string
 	debitorIBAN            string
 	creditorIBAN           string
 	metadata               valobj.Metadata
@@ -18,8 +19,8 @@ type PaymentTX struct {
 
 func NewPaymentTX(
 	TXID string, status valobj.Status, amount decimal.Decimal, currency valobj.Currency,
-	endToEndIdentification valobj.EndToEndIdentification, debitorIBAN string, creditorIBAN string,
-	metadata valobj.Metadata,
+	endToEndIdentification valobj.EndToEndIdentification, transactionType string, debitorIBAN string,
+	creditorIBAN string, metadata valobj.Metadata,
 ) (*PaymentTX, error) {
 	if err := validateIBAN(debitorIBAN); err != nil {
 		return nil, err
@@ -33,6 +34,7 @@ func NewPaymentTX(
 		amount:                 amount,
 		currency:               currency,
 		endToEndIdentification: endToEndIdentification,
+		transactionType:        transactionType,
 		debitorIBAN:            debitorIBAN,
 		creditorIBAN:           creditorIBAN,
 		metadata:               metadata,

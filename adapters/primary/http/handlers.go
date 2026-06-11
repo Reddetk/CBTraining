@@ -27,7 +27,7 @@ func NewHandler(payManager inport.PayManager, payAuditor inport.PayAuditor) *Han
 // @Accept       json
 // @Produce      json
 // @Param        request body inport.PaymentRequest true "Payment request payload"
-// @Success      200  {object}  inport.TXConfirmation
+// @Created      201  {object}  inport.TXConfirmation
 // @Failure      400  {object}  ErrorResponse
 // @Failure      500  {object}  ErrorResponse
 // @Router       /api/v1/payments [post]
@@ -44,7 +44,7 @@ func (h *Handler) CreatePayment(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, confirmation)
+	c.JSON(http.StatusCreated, confirmation)
 }
 
 // GetPaymentInfo godoc

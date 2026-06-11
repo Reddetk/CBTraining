@@ -25,7 +25,7 @@ The external system requests the current status of a previously transmitted inst
 
 ## Deploy
 
-![deploy](./docs/Deployment.md)
+[deploy](./docs/Deployment.md)
 
 ## Agregats
 
@@ -73,6 +73,7 @@ type TXRequest struct {
  Amount                 decimal.Decimal
  Currency               string
  EndToEndIdentification string
+transactionType string
  DebitorIBAN            string
  CreditorIBAN           string
  Metadata               string

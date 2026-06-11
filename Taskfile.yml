@@ -24,8 +24,8 @@ tasks:
   build:
     desc: Compile server and migrate binaries
     cmds:
-      - go build -o bin/migrate ./cmd/migrate.exe
-      - go build -o bin/server  ./cmd/server.exe
+      - go build -o bin/migrate.exe ./cmd/migrate
+      - go build -o bin/server.exe  ./cmd/server
 
 
   #------------ buid-migration
@@ -47,13 +47,13 @@ tasks:
     desc: Roll back last migration
     deps: [build-migration]
     cmds:
-      - bin/migrate -path {{.MIGRATIONS}} -database "postgres://{{.DB_USER}}:{{.DB_PASS}}@{{.DB_HOST}}:{{.DB_PORT}}/{{.DB_NAME}}?sslmode={{.DB_SSL}}" 
+      - bin/migrate.exe -path {{.MIGRATIONS}} -database "postgres://{{.DB_USER}}:{{.DB_PASS}}@{{.DB_HOST}}:{{.DB_PORT}}/{{.DB_NAME}}?sslmode={{.DB_SSL}}" 
 
   migrate-force:
     desc: "Force migration version (usage: task migrate-force VERSION=3)"
     deps: [build-migration]
     cmds:
-      - bin/migrate -path {{.MIGRATIONS}} -database "postgres://{{.DB_USER}}:{{.DB_PASS}}@{{.DB_HOST}}:{{.DB_PORT}}/{{.DB_NAME}}?sslmode={{.DB_SSL}}"
+      - bin/migrate.exe -path {{.MIGRATIONS}} -database "postgres://{{.DB_USER}}:{{.DB_PASS}}@{{.DB_HOST}}:{{.DB_PORT}}/{{.DB_NAME}}?sslmode={{.DB_SSL}}"
   
   # ----------- swagger
 

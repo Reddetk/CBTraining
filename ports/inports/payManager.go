@@ -14,6 +14,7 @@ type PaymentRequest struct {
 	Amount                 string
 	Currency               string
 	EndToEndIdentification string
+	TransactionType        string
 	Debitor                *PaymentPartyDTO
 	DebitorPacc            *PaymentAccountDTO
 	Creditor               *PaymentPartyDTO

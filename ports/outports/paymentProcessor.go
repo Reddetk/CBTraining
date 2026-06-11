@@ -17,6 +17,7 @@ type TXRequest struct {
 	Amount                 decimal.Decimal
 	Currency               string
 	EndToEndIdentification string
+	TransactionType        string
 	DebitorIBAN            string
 	CreditorIBAN           string
 	Metadata               string
