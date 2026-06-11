@@ -1,7 +1,10 @@
-.env*
-.env
+.env.local
+.env.test
+.env.staging
 *.env
 
 *.drawio
 
 helper
+
+/bin

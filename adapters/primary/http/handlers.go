@@ -65,10 +65,6 @@ func (h *Handler) GetPaymentInfo(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
 		return
 	}
-	if info == nil {
-		c.JSON(http.StatusNotFound, ErrorResponse{Error: "payment not found"})
-		return
-	}
 
 	c.JSON(http.StatusOK, info)
 }

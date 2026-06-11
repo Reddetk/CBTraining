@@ -23,10 +23,9 @@ The external system requests the current status of a previously transmitted inst
 
 - Fault Tolerance S
 
-## Invariants
+## Deploy
 
-1. (1:1) REST Request : PaymentTx
-1. (1:1) PA : PaymentTx
+![deploy](./docs/Deployment.md)
 
 ## Agregats
 
