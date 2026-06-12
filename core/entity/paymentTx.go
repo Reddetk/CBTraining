@@ -2,6 +2,7 @@ package entity
 
 import (
 	valobj "github.com/Reddetk/CBTraining/core/valObj"
+	outport "github.com/Reddetk/CBTraining/ports/outports"
 	"github.com/shopspring/decimal"
 )
 
@@ -38,5 +39,42 @@ func NewPaymentTX(
 		debitorIBAN:            debitorIBAN,
 		creditorIBAN:           creditorIBAN,
 		metadata:               metadata,
+	}, nil
+}
+
+func (tx *PaymentTX) ToRecord(
+	depCur, credCur valobj.Currency,
+	dBIC, cBIC string,
+	drole, crole valobj.Role,
+	dcoR, ccoR valobj.CountryOfResidence,
+	dname, cname string,
+) (outport.TXRecord, error) {
+	dpacc, err := NewPaymentAccount(tx.debitorIBAN, depCur)
+	if err != nil {
+		return outport.TXRecord{}, err
+	}
+	cpacc, err := NewPaymentAccount(tx.creditorIBAN, credCur)
+	if err != nil {
+		return outport.TXRecord{}, err
+	}
+
+	cPacRec, err := cpacc.ToPaRecord(cBIC, crole, ccoR, cname)
+	if err != nil {
+		return outport.TXRecord{}, err
+	}
+	dPacRec, err := dpacc.ToPaRecord(dBIC, drole, dcoR, dname)
+	if err != nil {
+		return outport.TXRecord{}, err
+	}
+
+	return outport.TXRecord{
+		TXID:                   tx.TXID,
+		Status:                 string(tx.status),
+		Amount:                 tx.amount.String(),
+		Currency:               tx.currency.String(),
+		EndToEndIdentification: tx.endToEndIdentification.String(),
+		TransactionType:        tx.transactionType,
+		DebitorPacc:            dPacRec,
+		CreditorPacc:           cPacRec,
 	}, nil
 }

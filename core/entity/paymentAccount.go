@@ -5,6 +5,7 @@ import (
 	"github.com/Reddetk/CBTraining/core/consts"
 	corerr "github.com/Reddetk/CBTraining/core/coreErrors"
 	valobj "github.com/Reddetk/CBTraining/core/valObj"
+	outport "github.com/Reddetk/CBTraining/ports/outports"
 )
 
 type PaymentAccount struct {
@@ -24,4 +25,16 @@ func validateIBAN(IBAN string) error {
 		return corerr.ErrIBANInvalidLength
 	}
 	return nil
+}
+
+func (pa *PaymentAccount) ToPaRecord(BIC string, role valobj.Role, countryOfResidence valobj.CountryOfResidence, name string) (*outport.PARecord, error) {
+	party, err := NewPaymentParty(BIC, role, countryOfResidence, name)
+	if err != nil {
+		return &outport.PARecord{}, err
+	}
+	return &outport.PARecord{
+		IBAN:       pa.IBAN,
+		AccCurency: pa.AccCurency.String(),
+		Party:      party.ToPartyRecord(),
+	}, nil
 }

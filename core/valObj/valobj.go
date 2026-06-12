@@ -97,6 +97,10 @@ func ParseCurrency(s string) (Currency, error) {
 	return Currency{Currency: s}, nil
 }
 
+func (c *Currency) String() string {
+	return c.Currency
+}
+
 // EndToEndIdentification represents a string that must match the regex pattern defined in consts -------
 type EndToEndIdentification struct {
 	Identification string `validate:"required,regex=^[a-zA-Z0-9]{1,35}$"`
@@ -107,6 +111,10 @@ func ParseEndToEndIdentification(s string) (EndToEndIdentification, error) {
 		return EndToEndIdentification{}, corerr.ErrEndToEndIdentificationInvalidFormat
 	}
 	return EndToEndIdentification{Identification: s}, nil
+}
+
+func (etei *EndToEndIdentification) String() string {
+	return etei.Identification
 }
 
 // CountryOfResidence char(len 2)(ContryCode  ISO 3166-1 alpha-2.)
