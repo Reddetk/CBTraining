@@ -1,19 +1,39 @@
 // Package kfproducer implements the Kafka producer adapter for sending messages to Kafka topics
 package kfproducer
 
-// ---------- ProcessTX (ProcessTX)
-// BEGIN;
-// UPDATE tx_history
-// SET    status     = $2,  -- 'processing'
-//        updated_at = $3
-// WHERE  id = $1;
-//
-// DELETE FROM pending
-// WHERE  tx_id = $1;
-//
-// INSERT INTO outbox (topic, payload)
-// VALUES (
-//     'payment.processing.request',
-//     jsonb_build_object('txid', $1, 'debtorAccount', $4, 'creditorAccount', $5)
-// );
-// COMMIT;
+import (
+	"context"
+
+	"github.com/Reddetk/CBTraining/logger"
+	"github.com/segmentio/kafka-go"
+)
+
+type Message struct {
+	Topic string
+	Key   []byte
+	Value []byte
+}
+
+type WriterProducer struct {
+	w      *kafka.Writer
+	logger logger.Logger
+}
+
+func NewWriterProducer(w *kafka.Writer, logger logger.Logger) *WriterProducer {
+	return &WriterProducer{
+		w:      w,
+		logger: logger,
+	}
+}
+
+func (p *WriterProducer) Send(ctx context.Context, msg Message) error {
+	return p.w.WriteMessages(ctx, kafka.Message{
+		Topic: msg.Topic,
+		Key:   msg.Key,
+		Value: msg.Value,
+	})
+}
+
+func (p *WriterProducer) Close() error {
+	return p.w.Close()
+}

@@ -2,18 +2,20 @@ package postgres
 
 import (
 	"context"
-	"fmt"
 
+	"github.com/Reddetk/CBTraining/logger"
 	outport "github.com/Reddetk/CBTraining/ports/outports"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"go.uber.org/zap"
 )
 
 type AuditRepo struct {
-	db *pgxpool.Pool
+	db     *pgxpool.Pool
+	logger logger.Logger
 }
 
-func NewAuditRepo(db *pgxpool.Pool) *AuditRepo {
-	return &AuditRepo{db: db}
+func NewAuditRepo(db *pgxpool.Pool, logger logger.Logger) *AuditRepo {
+	return &AuditRepo{db: db, logger: logger}
 }
 
 func (r *AuditRepo) GetTXByID(ctx context.Context, TXID string) (*outport.TXRecord, error) {
@@ -68,7 +70,8 @@ func (r *AuditRepo) GetTXByID(ctx context.Context, TXID string) (*outport.TXReco
 		&tx.CreditorPacc.Party.Name,
 	)
 	if err != nil {
-		return nil, fmt.Errorf("GetTXByID: %w", err)
+		r.logger.Error("failed to scan transaction", zap.String("txid", TXID), zap.Error(err))
+		return nil, err
 	}
 
 	return &tx, nil
