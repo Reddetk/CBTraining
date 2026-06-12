@@ -20,15 +20,15 @@ services:
       test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}"]
       interval: 5s
       retries: 5
-
-# docker-compose.yml
   kafka:
     image: confluentinc/cp-kafka:7.6.0
     environment:
       KAFKA_NODE_ID: 1
       KAFKA_PROCESS_ROLES: broker,controller
-      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:${KAFKA_PORT},CONTROLLER://0.0.0.0:${KAFKA_CONTROLLER_PORT}
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:${KAFKA_PORT}
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:${KAFKA_PORT},INTERNAL://0.0.0.0:29092,CONTROLLER://0.0.0.0:${KAFKA_CONTROLLER_PORT}
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:${KAFKA_PORT},INTERNAL://kafka:29092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,INTERNAL:PLAINTEXT,CONTROLLER:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: INTERNAL
       KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:${KAFKA_CONTROLLER_PORT}
       KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: ${KAFKA_REPLICATION_FACTOR}
@@ -37,3 +37,42 @@ services:
       CLUSTER_ID: ${KAFKA_CLUSTER_ID}
     ports:
       - "${KAFKA_PORT}:${KAFKA_PORT}"
+
+  kafka-init:
+    image: confluentinc/cp-kafka:7.6.0
+    depends_on:
+      kafka:
+        condition: service_started
+    init: true
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        echo "[kafka-init] waiting for kafka..."; \
+        until kafka-topics --bootstrap-server kafka:29092 --list >/dev/null 2>&1; do \
+          echo "[kafka-init] kafka is not ready yet, sleeping 5s..."; \
+          sleep 5; \
+        done; \
+        echo "[kafka-init] creating topics..."; \
+        kafka-topics --bootstrap-server kafka:29092 --create --if-not-exists \
+          --topic payment.processing.request  --partitions 3 --replication-factor 1; \
+        kafka-topics --bootstrap-server kafka:29092 --create --if-not-exists \
+          --topic payment.processing.response --partitions 3 --replication-factor 1; \
+        echo "[kafka-init] topics:"; \
+        kafka-topics --bootstrap-server kafka:29092 --list; \
+        echo "[kafka-init] done"
+    restart: "no"
+  stub:
+    build:
+      context: .
+      dockerfile: Dockerfile.stub
+    environment:
+      KAFKA_BROKERS: kafka:29092
+      KAFKA_TOPIC_REQUEST:  payment.processing.request
+      KAFKA_TOPIC_RESPONSE: payment.processing.response
+      KAFKA_CONSUMER_GROUP: stub-processing-service
+    depends_on:
+      kafka:
+        condition: service_started
+      kafka-init:
+        condition: service_completed_successfully
+    restart: unless-stopped

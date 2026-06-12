@@ -56,14 +56,15 @@ func (r *Repository) InsertTX(ctx context.Context, p outport.TXRecord) error {
 	}
 
 	_, err = tx.Exec(ctx, `
-        INSERT INTO outbox (topic, payload)
+        INSERT INTO outbox (topic, payload, created_at)
         VALUES (
             'payment.processing.request',
             jsonb_build_object(
                 'txid',            $1,
                 'debtorAccount',   $2,
                 'creditorAccount', $3
-            )
+            ),
+			NOW()
         )`,
 		p.TXID, p.DebitorPacc.IBAN, p.CreditorPacc.IBAN,
 	)

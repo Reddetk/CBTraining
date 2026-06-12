@@ -14,6 +14,7 @@ COPY . .
 RUN swag init -g cmd/server/main.go -o docs/
 RUN go build -o bin/server  ./cmd/server
 RUN go build -o bin/migrate ./cmd/migrate
+RUN go build -o bin/ProcessService ./ProcessService
 
 # ---- runtime stage
 FROM alpine:3.19

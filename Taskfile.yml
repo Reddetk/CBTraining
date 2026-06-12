@@ -1,4 +1,3 @@
-# Taskfile.yml
 version: '3'
 
 vars:
@@ -12,9 +11,9 @@ tasks:
   # ----------- dev lifecycle
 
   dev:
-    desc: "local: infra → migrate → swagger → run"
+    desc: "local: infra (+ stub) → migrate → swagger → run"
     cmds:
-      - task: infra-up
+      - task: infra-up        # уже включает stub через docker-compose
       - task: migrate-up
       - task: swagger
       - task: run
@@ -27,34 +26,44 @@ tasks:
       - go build -o bin/migrate.exe ./cmd/migrate
       - go build -o bin/server.exe  ./cmd/server
 
+  build-stub:
+    desc: Compile stub exe
+    cmds:
+      - go build -o bin/ProcessService.exe ./ProcessService/main.go
 
-  #------------ buid-migration
+  build-all:                          
+    desc: Compile server, migrate and stub binaries
+    cmds:
+      - task: build
+      - task: build-stub
+
+  #------------ build-migration
 
   build-migration:
     desc: Compile migrate binaries
     cmds:
       - go build -o bin/migrate.exe ./cmd/migrate
 
-
   # ----------- migrations
+
   migrate-up:
     desc: Apply all pending migrations
     deps: [build-migration]
     cmds:
-      - /bin/migrate.exe -path {{.MIGRATIONS}} -database "postgres://{{.DB_USER}}:{{.DB_PASS}}@{{.DB_HOST}}:{{.DB_PORT}}/{{.DB_NAME}}?sslmode={{.DB_SSL}}" 
+      - bin/migrate.exe -path {{.MIGRATIONS}} -database "postgres://{{.DB_USER}}:{{.DB_PASS}}@{{.DB_HOST}}:{{.DB_PORT}}/{{.DB_NAME}}?sslmode={{.DB_SSL}}"
 
   migrate-down:
     desc: Roll back last migration
     deps: [build-migration]
     cmds:
-      - bin/migrate.exe -path {{.MIGRATIONS}} -database "postgres://{{.DB_USER}}:{{.DB_PASS}}@{{.DB_HOST}}:{{.DB_PORT}}/{{.DB_NAME}}?sslmode={{.DB_SSL}}" 
+      - bin/migrate.exe -path {{.MIGRATIONS}} -database "postgres://{{.DB_USER}}:{{.DB_PASS}}@{{.DB_HOST}}:{{.DB_PORT}}/{{.DB_NAME}}?sslmode={{.DB_SSL}}"
 
   migrate-force:
     desc: "Force migration version (usage: task migrate-force VERSION=3)"
     deps: [build-migration]
     cmds:
       - bin/migrate.exe -path {{.MIGRATIONS}} -database "postgres://{{.DB_USER}}:{{.DB_PASS}}@{{.DB_HOST}}:{{.DB_PORT}}/{{.DB_NAME}}?sslmode={{.DB_SSL}}"
-  
+
   # ----------- swagger
 
   swagger:
@@ -68,14 +77,33 @@ tasks:
     desc: Start payment-service binary
     deps: [build]
     cmds:
-      - bin/server
+      - bin/server.exe
+
+  # ----------- stub (local, без докера)
+
+  stub-run:                           
+    desc: "Run stub locally (usage: task stub-run BROKERS=localhost:9092)"
+    deps: [build-stub]
+    cmds:
+      - bin/ProcessService.exe
+          -brokers     {{default "localhost:9092" .BROKERS}}
+          -topic-request  {{default "payment.processing.request"  .TOPIC_REQ}}
+          -topic-response {{default "payment.processing.response" .TOPIC_RESP}}
+          -failure-rate   {{default "0.10" .FAILURE_RATE}}
+          -delay-min      {{default "2"    .DELAY_MIN}}
+          -delay-max      {{default "7"    .DELAY_MAX}}
+
+  stub-logs:                          
+    desc: Tail stub container logs
+    cmds:
+      - docker-compose --env-file .env.{{.ENV}} logs -f stub
 
   # ----------- infra
 
   infra-up:
-    desc: "Start infrastructure containers (Postgres + Kafka) for ENV=local|test|staging"
+    desc: "Start infrastructure containers (Postgres + Kafka + Stub)"
     cmds:
-      - docker-compose --env-file .env.{{.ENV}} up -d postgres kafka
+      - docker-compose --env-file .env.{{.ENV}} up -d postgres kafka stub
 
   infra-down:
     desc: Stop infrastructure containers
@@ -97,18 +125,7 @@ tasks:
   # ----------- test TODO
 
   # test:
-  #   desc: "Unit tests"
-  #   cmds:
-  #     - go test ./... -v -race
-
   # test-integration:
-  #   desc: "Integration + smoke tests (ENV=test)"
-  #   cmds:
-  #     - task: migrate-up
-  #       vars: { ENV: test }
-  #     - go test ./... -v -race -tags=integration
-  #   vars:
-  #     ENV: test
 
   # ----------- clean
 
