@@ -1,12 +1,12 @@
 -- 000005_create_outbox.up.sql
 CREATE TABLE IF NOT EXISTS outbox (
-    id         UUID         NOT NULL DEFAULT gen_random_uuid(),
+    txid       VARCHAR(35)  NOT NULL,
     topic      VARCHAR(255) NOT NULL,
     payload    JSONB        NOT NULL,
     created_at TIMESTAMPTZ  NOT NULL,
     sent_at    TIMESTAMPTZ  NULL,
 
-    CONSTRAINT pk_outbox PRIMARY KEY (id)
+    CONSTRAINT pk_outbox PRIMARY KEY (txid)
 );
 
 -- OutboxRelay read only unsended 

@@ -52,18 +52,9 @@ definitions:
         $ref: '#/definitions/inport.PaymentAccountDTO'
       endToEndIdentification:
         type: string
-      metadata:
-        type: string
       status:
         type: string
-      txid:
-        type: string
-    type: object
-  inport.TXConfirmation:
-    properties:
-      metadata:
-        type: string
-      status:
+      transactionType:
         type: string
       txid:
         type: string
@@ -91,10 +82,6 @@ paths:
       produces:
       - application/json
       responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/inport.TXConfirmation'
         "400":
           description: Bad Request
           schema:

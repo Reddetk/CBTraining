@@ -40,12 +40,6 @@ const docTemplate = `{
                     }
                 ],
                 "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/inport.TXConfirmation"
-                        }
-                    },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
@@ -184,24 +178,10 @@ const docTemplate = `{
                 "endToEndIdentification": {
                     "type": "string"
                 },
-                "metadata": {
-                    "type": "string"
-                },
                 "status": {
                     "type": "string"
                 },
-                "txid": {
-                    "type": "string"
-                }
-            }
-        },
-        "inport.TXConfirmation": {
-            "type": "object",
-            "properties": {
-                "metadata": {
-                    "type": "string"
-                },
-                "status": {
+                "transactionType": {
                     "type": "string"
                 },
                 "txid": {

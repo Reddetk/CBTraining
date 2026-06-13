@@ -6,3 +6,5 @@ const (
 	IBANLength = 15
 	ChanBuffer = 100
 )
+
+const Charset = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"

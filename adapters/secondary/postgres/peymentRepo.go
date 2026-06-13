@@ -33,19 +33,19 @@ func (r *Repository) InsertTX(ctx context.Context, p outport.TXRecord) error {
 
 	_, err = tx.Exec(ctx, `
         INSERT INTO tx_history (
-            id, status, amount, currency,
+            txid, status, amount, currency,
             end_to_end_id, transaction_type,
             debtor_account_id, creditor_account_id,
             created_at, updated_at
         ) VALUES (
             $1, $2, $3, $4,
             $5, $6, $7, $8,
-            $9, $9
+            $9, $10
         )`,
 		p.TXID, p.Status, p.Amount, p.Currency,
 		p.EndToEndIdentification, p.TransactionType,
 		p.DebitorPacc.IBAN, p.CreditorPacc.IBAN,
-		p.Metadata,
+		time.Now().UTC(), time.Now().UTC(),
 	)
 	if err != nil {
 		r.logger.Error("failed to insert into tx_history", zap.String("txid", p.TXID), zap.Error(err))
@@ -53,7 +53,7 @@ func (r *Repository) InsertTX(ctx context.Context, p outport.TXRecord) error {
 	}
 
 	_, err = tx.Exec(ctx,
-		`INSERT INTO pending (tx_id, created_at) VALUES ($1, $2)`,
+		`INSERT INTO pending (txid, created_at) VALUES ($1, $2)`,
 		p.TXID, now,
 	)
 	if err != nil {
@@ -89,39 +89,39 @@ func (r *Repository) InsertTX(ctx context.Context, p outport.TXRecord) error {
 
 func (r *Repository) LoadPendingPayments(ctx context.Context) ([]outport.TXRecord, error) {
 	rows, err := r.db.Query(ctx, `
-        SELECT
-            t.id,
-            t.status,
-            t.amount::text,
-            t.currency,
-            t.end_to_end_id,
-            t.transaction_type,
+	SELECT
+		t.txid,
+		t.status,
+		t.amount::text,
+		t.currency,
+		t.end_to_end_id,
+		t.transaction_type,
 
-            -- debtor pa_registry
-            dpa.id,
-            dpa.account_currency,
-            -- debtor party_registry
-            dp.id,
-            dp.role,
-            dp.country_of_residence,
-            dp.name,
+		-- debtor pa_registry
+		dpa.iban,
+		dpa.account_currency,
+		-- debtor party_registry
+		dp.bic,
+		dp.role,
+		dp.country_of_residence,
+		dp.name,
 
-            -- creditor pa_registry
-            cpa.id,
-            cpa.account_currency,
-            -- creditor party_registry
-            cp.id,
-            cp.role,
-            cp.country_of_residence,
-            cp.name
+		-- creditor pa_registry
+		cpa.iban,
+		cpa.account_currency,
+		-- creditor party_registry
+		cp.bic,
+		cp.role,
+		cp.country_of_residence,
+		cp.name
 
-        FROM   pending p
-        JOIN   tx_history t   ON t.id          = p.tx_id
-        JOIN   pa_registry  dpa ON dpa.id      = t.debtor_account_id
-        JOIN   party_registry dp ON dp.id      = dpa.party_id
-        JOIN   pa_registry  cpa ON cpa.id      = t.creditor_account_id
-        JOIN   party_registry cp ON cp.id      = cpa.party_id
-        ORDER  BY p.created_at ASC
+	FROM   pending p
+	JOIN   tx_history    t   ON t.txid     = p.txid
+	JOIN   pa_registry   dpa ON dpa.iban   = t.debtor_account_id
+	JOIN   party_registry dp ON dp.bic     = dpa.party_bic
+	JOIN   pa_registry   cpa ON cpa.iban   = t.creditor_account_id
+	JOIN   party_registry cp ON cp.bic     = cpa.party_bic
+	ORDER  BY p.created_at ASC
     `)
 	if err != nil {
 		r.logger.Error("failed to query pending payments", zap.Error(err))
@@ -187,7 +187,7 @@ func (r *Repository) PersistProcessResult(ctx context.Context, txID, result stri
         UPDATE tx_history
         SET    status     = $2,
                updated_at = NOW()
-        WHERE  id = $1
+        WHERE  txid = $1
     `, txID, result)
 	if err != nil {
 		r.logger.Error("failed to update transaction status", zap.String("txid", txID), zap.String("status", result), zap.Error(err))
@@ -221,7 +221,7 @@ func (r *Repository) ProcessTX(ctx context.Context, p outport.TXRequest) error {
         UPDATE tx_history
         SET    status     = $2,
                updated_at = $3
-        WHERE  id         = $1
+        WHERE  txid       = $1
     `,
 		p.TXID,
 		"processing",
@@ -235,7 +235,7 @@ func (r *Repository) ProcessTX(ctx context.Context, p outport.TXRequest) error {
 	// DELETE FROM pending
 	_, err = tx.Exec(ctx, `
         DELETE FROM pending
-        WHERE  tx_id = $1
+        WHERE  txid = $1
     `,
 		p.TXID,
 	)

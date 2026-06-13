@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"os"
 	"os/signal"
 	"syscall"
@@ -31,14 +30,7 @@ func main() {
 	cfg := config.Load()
 
 	// ===== 1. Инициализация логгера =====
-	zapLogger, err := zap.NewProduction()
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "failed to create logger: %v\n", err)
-		os.Exit(1)
-	}
-	defer zapLogger.Sync()
-
-	log := logger.NewZapLogger(zapLogger)
+	log := logger.New()
 	log.Info("payment service starting")
 
 	// ===== 2. Инициализация контекста =====

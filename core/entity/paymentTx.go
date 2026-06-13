@@ -1,6 +1,11 @@
 package entity
 
 import (
+	"fmt"
+	"math/rand"
+	"time"
+
+	consts "github.com/Reddetk/CBTraining/core/consts"
 	valobj "github.com/Reddetk/CBTraining/core/valObj"
 	inport "github.com/Reddetk/CBTraining/ports/inports"
 	outport "github.com/Reddetk/CBTraining/ports/outports"
@@ -37,11 +42,19 @@ func NewPaymentTX(
 	}, nil
 }
 
-func NewPaymentTXFromDTO(pReq inport.PaymentRequest) (*PaymentTX, error) {
-	st, err := valobj.ValStatus(pReq.Status)
-	if err != nil {
-		return nil, err
+func genTXID() string {
+	date := time.Now().UTC().Format("20060102")
+
+	r := rand.New(rand.NewSource(time.Now().UnixNano()))
+	suffix := make([]byte, 8)
+	for i := range suffix {
+		suffix[i] = consts.Charset[r.Intn(len(consts.Charset))]
 	}
+
+	return fmt.Sprintf("TX-%s-%s", date, string(suffix))
+}
+
+func NewPaymentTXFromDTO(pReq inport.PaymentRequest) (*PaymentTX, error) {
 	am, err := decimal.NewFromString(pReq.Amount)
 	if err != nil {
 		return nil, err
@@ -65,8 +78,8 @@ func NewPaymentTXFromDTO(pReq inport.PaymentRequest) (*PaymentTX, error) {
 	}
 
 	return NewPaymentTX(
-		pReq.TXID,
-		st,
+		genTXID(),
+		valobj.Pending,
 		am,
 		cur,
 		eteID,

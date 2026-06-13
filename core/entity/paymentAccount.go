@@ -2,7 +2,6 @@
 package entity
 
 import (
-	"github.com/Reddetk/CBTraining/core/consts"
 	corerr "github.com/Reddetk/CBTraining/core/coreErrors"
 	valobj "github.com/Reddetk/CBTraining/core/valObj"
 	inport "github.com/Reddetk/CBTraining/ports/inports"
@@ -47,7 +46,7 @@ func RecoverPAFromRec(paRec outport.PARecord, ppRec outport.PartyRecord) (*Payme
 }
 
 func validateIBAN(IBAN string) error {
-	if len(IBAN) < 15 || len(IBAN) > consts.IBANLength {
+	if len(IBAN) < 15 || len(IBAN) > 34 {
 		return corerr.ErrIBANInvalidLength
 	}
 	return nil

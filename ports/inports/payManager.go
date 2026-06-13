@@ -10,28 +10,26 @@ type PayManager interface {
 }
 
 type PaymentRequest struct {
-	TXID                   string
-	Status                 string
-	Amount                 string
-	Currency               string
-	EndToEndIdentification string
-	TransactionType        string
-	Debitor                *PaymentPartyDTO
-	DebitorPacc            *PaymentAccountDTO
-	Creditor               *PaymentPartyDTO
-	CreditorPacc           *PaymentAccountDTO
+	Amount                 string             `json:"amount"`
+	Currency               string             `json:"currency"`
+	EndToEndIdentification string             `json:"endToEndIdentification"`
+	TransactionType        string             `json:"transactionType"`
+	Debitor                *PaymentPartyDTO   `json:"debitor"`
+	DebitorPacc            *PaymentAccountDTO `json:"debitorPacc"`
+	Creditor               *PaymentPartyDTO   `json:"creditor"`
+	CreditorPacc           *PaymentAccountDTO `json:"creditorPacc"`
 }
 
 type PaymentPartyDTO struct {
-	BIC               string
-	Role              string
-	ContryOfResidence string
-	Name              string
+	BIC               string `json:"bic"`
+	Role              string `json:"role"`
+	ContryOfResidence string `json:"contryOfResidence"`
+	Name              string `json:"name"`
 }
 
 type PaymentAccountDTO struct {
-	IBAN       string
-	AccCurency string
+	IBAN       string `json:"iban"`
+	AccCurency string `json:"accCurency"`
 }
 
 type PaymentResult struct {

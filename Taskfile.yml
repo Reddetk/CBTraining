@@ -11,12 +11,17 @@ tasks:
   # ----------- dev lifecycle
 
   dev:
-    desc: "local: infra (+ stub) → migrate → swagger → run"
+    desc: "local: infra → migrate → swagger → go run server"
     cmds:
-      - task: infra-up        # уже включает stub через docker-compose
+      - task: infra-up       
       - task: migrate-up
       - task: swagger
-      - task: run
+      - task: dev-run
+
+  dev-run:
+    desc: "Run server with 'go run' (requires infra running)"
+    cmds:
+      - go run ./cmd/server
 
   # ----------- build
 
@@ -45,25 +50,22 @@ tasks:
       - go build -o bin/migrate.exe ./cmd/migrate
 
   # ----------- migrations
-
   migrate-up:
-    desc: Apply all pending migrations
     deps: [build-migration]
     cmds:
-      - bin/migrate.exe -path {{.MIGRATIONS}} -database "postgres://{{.DB_USER}}:{{.DB_PASS}}@{{.DB_HOST}}:{{.DB_PORT}}/{{.DB_NAME}}?sslmode={{.DB_SSL}}"
+      - bin/migrate.exe -path {{.MIGRATIONS}} -database "postgres://$DB_USER:$DB_PASS@$DB_HOST:$DB_PORT/$DB_NAME?sslmode=$DB_SSL" -cmd up
 
   migrate-down:
     desc: Roll back last migration
     deps: [build-migration]
     cmds:
-      - bin/migrate.exe -path {{.MIGRATIONS}} -database "postgres://{{.DB_USER}}:{{.DB_PASS}}@{{.DB_HOST}}:{{.DB_PORT}}/{{.DB_NAME}}?sslmode={{.DB_SSL}}"
+      - bin/migrate.exe -path {{.MIGRATIONS}} -database "postgres://$DB_USER:$DB_PASS@$DB_HOST:$DB_PORT/$DB_NAME?sslmode=$DB_SSL" -cmd down
 
   migrate-force:
-    desc: "Force migration version (usage: task migrate-force VERSION=3)"
+    desc: "Force migration version (usage: task migrate-force VERSION=1)"
     deps: [build-migration]
     cmds:
-      - bin/migrate.exe -path {{.MIGRATIONS}} -database "postgres://{{.DB_USER}}:{{.DB_PASS}}@{{.DB_HOST}}:{{.DB_PORT}}/{{.DB_NAME}}?sslmode={{.DB_SSL}}"
-
+      - bin/migrate.exe -path {{.MIGRATIONS}} -database "postgres://$DB_USER:$DB_PASS@$DB_HOST:$DB_PORT/$DB_NAME?sslmode=$DB_SSL" -cmd force -version {{.VERSION}}
   # ----------- swagger
 
   swagger:
@@ -74,7 +76,7 @@ tasks:
   # ----------- run
 
   run:
-    desc: Start payment-service binary
+    desc: "Start payment-service binary (deployment/testing with binary)"
     deps: [build]
     cmds:
       - bin/server.exe

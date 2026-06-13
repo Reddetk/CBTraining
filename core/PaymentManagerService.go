@@ -9,6 +9,7 @@ import (
 	"github.com/Reddetk/CBTraining/logger"
 	inport "github.com/Reddetk/CBTraining/ports/inports"
 	outport "github.com/Reddetk/CBTraining/ports/outports"
+	"go.uber.org/zap"
 )
 
 type PaymentManagerService struct {
@@ -39,12 +40,14 @@ func NewPaymentManagerService(
 	if err != nil {
 		return nil, err
 	}
+	PayManServ.log.Info("new pay manager server started")
 	return PayManServ, nil
 }
 
 func (ps *PaymentManagerService) pandingRecovery(ctx context.Context) error {
 	TXrecs, err := ps.pandRepo.LoadPendingPayments(ctx)
 	if err != nil {
+		ps.log.Error(err.Error())
 		return err
 	}
 	for _, TXrec := range TXrecs {
@@ -58,6 +61,7 @@ func (ps *PaymentManagerService) pandingRecovery(ctx context.Context) error {
 			continue
 		}
 	}
+	ps.log.Info("panding recovery done")
 	return nil
 }
 
@@ -67,18 +71,22 @@ func (ps *PaymentManagerService) PaymentCMD(
 ) (*inport.TXConfirmation, error) {
 	tx, err := entity.NewPaymentTXFromDTO(*req)
 	if err != nil {
+		ps.log.Error(err.Error())
 		return nil, err
 	}
 
 	err = ps.paymentRepo.InsertTX(ctx, tx.ToRecord())
 	if err != nil {
+		ps.log.Error(err.Error())
 		return nil, err
 	}
 
 	if err := ps.add(tx); err != nil {
+		ps.log.Error(err.Error())
 		return nil, err
 	}
 
+	ps.log.Info("payment req sended", zap.String("txid", tx.TXID))
 	return &inport.TXConfirmation{
 		TXID:     tx.TXID,
 		Status:   string(valobj.Pending),
@@ -92,6 +100,7 @@ func (ps *PaymentManagerService) add(tx *entity.PaymentTX) error {
 	select {
 	case <-ps.dispatcher.RootCtx.Done():
 		ps.dispatcher.Mu.Unlock()
+		ps.log.Error(corerr.ErrDispatcherShuting.Error())
 		return corerr.ErrDispatcherShuting
 	default:
 	}
