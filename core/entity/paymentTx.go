@@ -77,6 +77,51 @@ func NewPaymentTXFromDTO(pReq inport.PaymentRequest) (*PaymentTX, error) {
 	)
 }
 
+func RecoverPaymentTXFromRec(pRec outport.TXRecord) (*PaymentTX, error) {
+	st, err := valobj.ValStatus(pRec.Status)
+	if err != nil {
+		return nil, err
+	}
+	am, err := decimal.NewFromString(pRec.Amount)
+	if err != nil {
+		return nil, err
+	}
+	cur, err := valobj.ParseCurrency(pRec.Currency)
+	if err != nil {
+		return nil, err
+	}
+	eteID, err := valobj.ParseEndToEndIdentification(pRec.EndToEndIdentification)
+	if err != nil {
+		return nil, err
+	}
+
+	credPA, err := RecoverPAFromRec(*pRec.CreditorPacc, *pRec.CreditorPacc.Party)
+	if err != nil {
+		return nil, err
+	}
+	debPA, err := RecoverPAFromRec(*pRec.DebitorPacc, *pRec.DebitorPacc.Party)
+	if err != nil {
+		return nil, err
+	}
+
+	md, err := valobj.NewMetadata(pRec.Metadata)
+	if err != nil {
+		return nil, err
+	}
+
+	return NewPaymentTX(
+		pRec.TXID,
+		st,
+		am,
+		cur,
+		eteID,
+		pRec.TransactionType,
+		debPA,
+		credPA,
+		md,
+	)
+}
+
 func (tx *PaymentTX) ToRecord() outport.TXRecord {
 	return outport.TXRecord{
 		TXID:                   tx.TXID,

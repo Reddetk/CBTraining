@@ -3,22 +3,11 @@ package postgres
 import (
 	"context"
 
-	"github.com/Reddetk/CBTraining/logger"
 	outport "github.com/Reddetk/CBTraining/ports/outports"
-	"github.com/jackc/pgx/v5/pgxpool"
 	"go.uber.org/zap"
 )
 
-type AuditRepo struct {
-	db     *pgxpool.Pool
-	logger logger.Logger
-}
-
-func NewAuditRepo(db *pgxpool.Pool, logger logger.Logger) *AuditRepo {
-	return &AuditRepo{db: db, logger: logger}
-}
-
-func (r *AuditRepo) GetTXByID(ctx context.Context, TXID string) (*outport.TXRecord, error) {
+func (r *Repository) GetTXByID(ctx context.Context, TXID string) (*outport.TXRecord, error) {
 	query := `
         SELECT
             t.tx_id,

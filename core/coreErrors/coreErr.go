@@ -26,5 +26,6 @@ var (
 	ErrInfrastructure  = errors.New("infrastructure error occurred")
 	ErrPaymentNotFound = errors.New("payment not found")
 
-	ErrDispatcherShuting = errors.New("dispatcher is shutting down")
+	ErrDispatcherShuting      = errors.New("dispatcher is shutting down")
+	ErrFailedTorecoverPanding = errors.New("failed to recover panding tx-s")
 )

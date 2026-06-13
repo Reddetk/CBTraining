@@ -13,7 +13,7 @@ import (
 
 type PaymentManagerService struct {
 	paymentProc outport.PaymentProcessor
-	pandingRepo outport.PendingRepo
+	pandRepo    outport.PendingRepo
 	paymentRepo outport.PaymentRepo
 	dispatcher  *entity.Dispatcher
 	log         logger.Logger
@@ -21,20 +21,44 @@ type PaymentManagerService struct {
 
 func NewPaymentManagerService(
 	payProc outport.PaymentProcessor,
-	panRep outport.PendingRepo,
+	pandRepo outport.PendingRepo,
 	payRep outport.PaymentRepo,
 	rootCtx context.Context,
 	maxWorker int,
 	log logger.Logger,
 ) (*PaymentManagerService, error) {
 	disp := entity.NewDispatcher(rootCtx, maxWorker)
-	return &PaymentManagerService{
+	PayManServ := &PaymentManagerService{
 		paymentProc: payProc,
-		pandingRepo: panRep,
+		pandRepo:    pandRepo,
 		paymentRepo: payRep,
 		dispatcher:  disp,
 		log:         log,
-	}, nil
+	}
+	err := PayManServ.pandingRecovery(context.Background())
+	if err != nil {
+		return nil, err
+	}
+	return PayManServ, nil
+}
+
+func (ps *PaymentManagerService) pandingRecovery(ctx context.Context) error {
+	TXrecs, err := ps.pandRepo.LoadPendingPayments(ctx)
+	if err != nil {
+		return err
+	}
+	for _, TXrec := range TXrecs {
+		tx, err := entity.RecoverPaymentTXFromRec(TXrec)
+		if err != nil {
+			ps.log.Error(err.Error())
+			continue
+		}
+		if err := ps.add(tx); err != nil {
+			ps.log.Error(err.Error())
+			continue
+		}
+	}
+	return nil
 }
 
 func (ps *PaymentManagerService) PaymentCMD(
@@ -51,7 +75,7 @@ func (ps *PaymentManagerService) PaymentCMD(
 		return nil, err
 	}
 
-	if err := ps.add(ctx, tx); err != nil {
+	if err := ps.add(tx); err != nil {
 		return nil, err
 	}
 
@@ -62,7 +86,7 @@ func (ps *PaymentManagerService) PaymentCMD(
 	}, nil
 }
 
-func (ps *PaymentManagerService) add(ctx context.Context, tx *entity.PaymentTX) error {
+func (ps *PaymentManagerService) add(tx *entity.PaymentTX) error {
 	ps.dispatcher.Mu.Lock()
 
 	select {
@@ -178,8 +202,10 @@ func (ps *PaymentManagerService) runWorker(g *entity.Group) {
 	}
 }
 
-// Shutdown — graceful: ждём завершения всех воркеров
+func (ps *PaymentManagerService) StorePaymentResult(ctx context.Context, payRes *inport.PaymentResult) error {
+	return ps.paymentRepo.PersistProcessResult(ctx, payRes.TXID, payRes.Result)
+}
+
 func (ps *PaymentManagerService) Shutdown() {
-	// ctx диспетчера отменяется снаружи через workerCancelSig переданный в NewDispatcher
 	ps.dispatcher.Wg.Wait()
 }

@@ -15,11 +15,11 @@ type PaymentAccount struct {
 	paymentParty *PaymentParty
 }
 
-func NewPaymentAccount(IBAN string, currency valobj.Currency) (*PaymentAccount, error) {
+func NewPaymentAccount(IBAN string, currency valobj.Currency, pp *PaymentParty) (*PaymentAccount, error) {
 	if err := validateIBAN(IBAN); err != nil {
 		return nil, err
 	}
-	return &PaymentAccount{IBAN: IBAN, accCurency: currency}, nil
+	return &PaymentAccount{IBAN: IBAN, accCurency: currency, paymentParty: pp}, nil
 }
 
 func NewPAFromDTO(paDTO inport.PaymentAccountDTO, ppDTO inport.PaymentPartyDTO) (*PaymentAccount, error) {
@@ -27,7 +27,23 @@ func NewPAFromDTO(paDTO inport.PaymentAccountDTO, ppDTO inport.PaymentPartyDTO) 
 	if err != nil {
 		return nil, err
 	}
-	return NewPaymentAccount(paDTO.IBAN, cur)
+	pp, err := NewPaymentPartyFromDTO(ppDTO)
+	if err != nil {
+		return nil, err
+	}
+	return NewPaymentAccount(paDTO.IBAN, cur, pp)
+}
+
+func RecoverPAFromRec(paRec outport.PARecord, ppRec outport.PartyRecord) (*PaymentAccount, error) {
+	cur, err := valobj.ParseCurrency(paRec.AccCurency)
+	if err != nil {
+		return nil, err
+	}
+	pp, err := RecoverPPFromRec(&ppRec)
+	if err != nil {
+		return nil, err
+	}
+	return NewPaymentAccount(paRec.IBAN, cur, pp)
 }
 
 func validateIBAN(IBAN string) error {

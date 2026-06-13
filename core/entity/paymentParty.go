@@ -56,3 +56,15 @@ func (pp *PaymentParty) ToPartyRecord() *outport.PartyRecord {
 		Name:              pp.name,
 	}
 }
+
+func  RecoverPPFromRec(ppr *outport.PartyRecord) (*PaymentParty, error) {
+	cor, err := valobj.ParseCountryOfResidence(ppr.ContryOfResidence)
+	if err != nil {
+		return nil, err
+	}
+	role, err := valobj.ValRole(ppr.Role)
+	if err != nil {
+		return nil, err
+	}
+	return NewPaymentParty(ppr.BIC, role, cor, ppr.Name)
+}
