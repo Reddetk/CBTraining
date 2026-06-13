@@ -21,20 +21,20 @@ import (
 //   ИЛИ
 //   → dispatcher.Shutdown() (parent ctx отменён) → воркер дочитывает буфер → завершается
 type Group struct {
-	ch chan *PaymentTX
+	Ch chan *PaymentTX
 
 	// ctx — контекст жизни этой конкретной группы.
 	// Отменяется в двух случаях:
 	//   а) Dispatcher.Add() решил слить эту группу в другую (merge) — вызывает workerCancelSig
 	//   б) parent ctx диспетчера отменён (graceful shutdown) — отменяет все дочерние ctx автоматически
 	// Воркер слушает ctx.Done() чтобы узнать что пора завершаться.
-	ctx context.Context
+	GrCtx context.Context
 
 	// workerCancelSig — функция отмены ctx этой группы.
 	// Вызывается только Dispatcher-ом при merge: сигнализирует воркеру
 	// что новые TX больше не придут и можно дочитать буфер и выйти.
 	// После вызова workerCancelSig Dispatcher перестаёт писать в g.ch.
-	workerCancelSig context.CancelFunc
+	WorkerCancelSig context.CancelFunc
 }
 
 // NewGroup создаёт новую группу привязанную к жизненному циклу parent-контекста.
@@ -46,8 +46,8 @@ func NewGroup(parent context.Context) *Group {
 	//   workerCancelSig()   — Dispatcher дёргает при merge или shutdown
 	ctx, workerCancelSig := context.WithCancel(parent)
 	return &Group{
-		ch:              make(chan *PaymentTX, consts.ChanBuffer),
-		ctx:             ctx,
-		workerCancelSig: workerCancelSig,
+		Ch:              make(chan *PaymentTX, consts.ChanBuffer),
+		GrCtx:             ctx,
+		WorkerCancelSig: workerCancelSig,
 	}
 }

@@ -5,19 +5,29 @@ import (
 	"github.com/Reddetk/CBTraining/core/consts"
 	corerr "github.com/Reddetk/CBTraining/core/coreErrors"
 	valobj "github.com/Reddetk/CBTraining/core/valObj"
+	inport "github.com/Reddetk/CBTraining/ports/inports"
 	outport "github.com/Reddetk/CBTraining/ports/outports"
 )
 
 type PaymentAccount struct {
-	IBAN       string
-	AccCurency valobj.Currency
+	IBAN         string
+	accCurency   valobj.Currency
+	paymentParty *PaymentParty
 }
 
 func NewPaymentAccount(IBAN string, currency valobj.Currency) (*PaymentAccount, error) {
 	if err := validateIBAN(IBAN); err != nil {
 		return nil, err
 	}
-	return &PaymentAccount{IBAN: IBAN, AccCurency: currency}, nil
+	return &PaymentAccount{IBAN: IBAN, accCurency: currency}, nil
+}
+
+func NewPAFromDTO(paDTO inport.PaymentAccountDTO, ppDTO inport.PaymentPartyDTO) (*PaymentAccount, error) {
+	cur, err := valobj.ParseCurrency(paDTO.AccCurency)
+	if err != nil {
+		return nil, err
+	}
+	return NewPaymentAccount(paDTO.IBAN, cur)
 }
 
 func validateIBAN(IBAN string) error {
@@ -27,14 +37,10 @@ func validateIBAN(IBAN string) error {
 	return nil
 }
 
-func (pa *PaymentAccount) ToPaRecord(BIC string, role valobj.Role, countryOfResidence valobj.CountryOfResidence, name string) (*outport.PARecord, error) {
-	party, err := NewPaymentParty(BIC, role, countryOfResidence, name)
-	if err != nil {
-		return &outport.PARecord{}, err
-	}
+func (pa *PaymentAccount) ToPaRecord() *outport.PARecord {
 	return &outport.PARecord{
 		IBAN:       pa.IBAN,
-		AccCurency: pa.AccCurency.String(),
-		Party:      party.ToPartyRecord(),
-	}, nil
+		AccCurency: pa.accCurency.String(),
+		Party:      pa.paymentParty.ToPartyRecord(),
+	}
 }

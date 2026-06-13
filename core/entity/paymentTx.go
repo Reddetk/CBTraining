@@ -2,79 +2,111 @@ package entity
 
 import (
 	valobj "github.com/Reddetk/CBTraining/core/valObj"
+	inport "github.com/Reddetk/CBTraining/ports/inports"
 	outport "github.com/Reddetk/CBTraining/ports/outports"
 	"github.com/shopspring/decimal"
 )
 
 type PaymentTX struct {
 	TXID                   string
-	status                 valobj.Status
-	amount                 decimal.Decimal
-	currency               valobj.Currency
-	endToEndIdentification valobj.EndToEndIdentification
-	transactionType        string
-	debitorIBAN            string
-	creditorIBAN           string
-	metadata               valobj.Metadata
+	Status                 valobj.Status
+	Amount                 decimal.Decimal
+	Currency               valobj.Currency
+	EndToEndIdentification valobj.EndToEndIdentification
+	TransactionType        string
+	DebitorPacc            *PaymentAccount
+	CreditorPacc           *PaymentAccount
+	Metadata               valobj.Metadata
 }
 
 func NewPaymentTX(
 	TXID string, status valobj.Status, amount decimal.Decimal, currency valobj.Currency,
-	endToEndIdentification valobj.EndToEndIdentification, transactionType string, debitorIBAN string,
-	creditorIBAN string, metadata valobj.Metadata,
+	endToEndIdentification valobj.EndToEndIdentification, transactionType string, debitorPacc *PaymentAccount,
+	creditorPacc *PaymentAccount, metadata valobj.Metadata,
 ) (*PaymentTX, error) {
-	if err := validateIBAN(debitorIBAN); err != nil {
-		return nil, err
-	}
-	if err := validateIBAN(creditorIBAN); err != nil {
-		return nil, err
-	}
 	return &PaymentTX{
 		TXID:                   TXID,
-		status:                 status,
-		amount:                 amount,
-		currency:               currency,
-		endToEndIdentification: endToEndIdentification,
-		transactionType:        transactionType,
-		debitorIBAN:            debitorIBAN,
-		creditorIBAN:           creditorIBAN,
-		metadata:               metadata,
+		Status:                 status,
+		Amount:                 amount,
+		Currency:               currency,
+		EndToEndIdentification: endToEndIdentification,
+		TransactionType:        transactionType,
+		DebitorPacc:            debitorPacc,
+		CreditorPacc:           creditorPacc,
+		Metadata:               metadata,
 	}, nil
 }
 
-func (tx *PaymentTX) ToRecord(
-	depCur, credCur valobj.Currency,
-	dBIC, cBIC string,
-	drole, crole valobj.Role,
-	dcoR, ccoR valobj.CountryOfResidence,
-	dname, cname string,
-) (outport.TXRecord, error) {
-	dpacc, err := NewPaymentAccount(tx.debitorIBAN, depCur)
+func NewPaymentTXFromDTO(pReq inport.PaymentRequest) (*PaymentTX, error) {
+	st, err := valobj.ValStatus(pReq.Status)
 	if err != nil {
-		return outport.TXRecord{}, err
+		return nil, err
 	}
-	cpacc, err := NewPaymentAccount(tx.creditorIBAN, credCur)
+	am, err := decimal.NewFromString(pReq.Amount)
 	if err != nil {
-		return outport.TXRecord{}, err
+		return nil, err
 	}
-
-	cPacRec, err := cpacc.ToPaRecord(cBIC, crole, ccoR, cname)
+	cur, err := valobj.ParseCurrency(pReq.Currency)
 	if err != nil {
-		return outport.TXRecord{}, err
+		return nil, err
 	}
-	dPacRec, err := dpacc.ToPaRecord(dBIC, drole, dcoR, dname)
+	eteID, err := valobj.ParseEndToEndIdentification(pReq.EndToEndIdentification)
 	if err != nil {
-		return outport.TXRecord{}, err
+		return nil, err
 	}
 
+	credPA, err := NewPAFromDTO(*pReq.CreditorPacc, *pReq.Creditor)
+	if err != nil {
+		return nil, err
+	}
+	debPA, err := NewPAFromDTO(*pReq.DebitorPacc, *pReq.Debitor)
+	if err != nil {
+		return nil, err
+	}
+
+	return NewPaymentTX(
+		pReq.TXID,
+		st,
+		am,
+		cur,
+		eteID,
+		pReq.TransactionType,
+		debPA,
+		credPA,
+		valobj.NewMetadataNow(),
+	)
+}
+
+func (tx *PaymentTX) ToRecord() outport.TXRecord {
 	return outport.TXRecord{
 		TXID:                   tx.TXID,
-		Status:                 string(tx.status),
-		Amount:                 tx.amount.String(),
-		Currency:               tx.currency.String(),
-		EndToEndIdentification: tx.endToEndIdentification.String(),
-		TransactionType:        tx.transactionType,
-		DebitorPacc:            dPacRec,
-		CreditorPacc:           cPacRec,
-	}, nil
+		Status:                 string(tx.Status),
+		Amount:                 tx.Amount.String(),
+		Currency:               tx.Currency.String(),
+		EndToEndIdentification: tx.EndToEndIdentification.String(),
+		TransactionType:        tx.TransactionType,
+		DebitorPacc:            tx.DebitorPacc.ToPaRecord(),
+		CreditorPacc:           tx.CreditorPacc.ToPaRecord(),
+	}
+}
+
+func (tx *PaymentTX) ToTxRequest() outport.TXRequest {
+	return outport.TXRequest{
+		TXID:                   tx.TXID,
+		Status:                 string(tx.Status),
+		Amount:                 tx.Amount,
+		Currency:               tx.Currency.String(),
+		EndToEndIdentification: tx.EndToEndIdentification.String(),
+		TransactionType:        tx.TransactionType,
+		DebitorIBAN:            tx.DebitorPacc.IBAN,
+		CreditorIBAN:           tx.CreditorPacc.IBAN,
+	}
+}
+
+func (tx *PaymentTX) CredIBAN() string {
+	return tx.CreditorPacc.IBAN
+}
+
+func (tx *PaymentTX) DebIBAN() string {
+	return tx.DebitorPacc.IBAN
 }

@@ -19,7 +19,7 @@ type Event struct {
 }
 
 type Store struct {
-	db    *pgxpool.Pool
+	db     *pgxpool.Pool
 	logger logger.Logger
 }
 
@@ -34,6 +34,7 @@ func (s *Store) FetchUnsent(ctx context.Context, limit int) ([]Event, error) {
         WHERE sent_at IS NULL
         ORDER BY created_at ASC
         LIMIT $1
+		FOR UPDATE SKIP LOCKED
     `, limit)
 	if err != nil {
 		s.logger.Error("failed to fetch unsent events", zap.Error(err))

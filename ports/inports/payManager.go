@@ -6,6 +6,7 @@ import "context"
 type PayManager interface {
 	PaymentCMD(ctx context.Context, requ *PaymentRequest) (*TXConfirmation, error)
 	StorePaymentResult(ctx context.Context, payRes *PaymentResult) error
+	Shutdown()
 }
 
 type PaymentRequest struct {
@@ -19,7 +20,6 @@ type PaymentRequest struct {
 	DebitorPacc            *PaymentAccountDTO
 	Creditor               *PaymentPartyDTO
 	CreditorPacc           *PaymentAccountDTO
-	Metadata               string
 }
 
 type PaymentPartyDTO struct {

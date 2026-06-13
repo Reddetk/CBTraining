@@ -3,12 +3,16 @@ package core
 import (
 	"context"
 
+	corerr "github.com/Reddetk/CBTraining/core/coreErrors"
 	"github.com/Reddetk/CBTraining/core/entity"
+	valobj "github.com/Reddetk/CBTraining/core/valObj"
 	"github.com/Reddetk/CBTraining/logger"
+	inport "github.com/Reddetk/CBTraining/ports/inports"
 	outport "github.com/Reddetk/CBTraining/ports/outports"
 )
 
 type PaymentManagerService struct {
+	paymentProc outport.PaymentProcessor
 	pandingRepo outport.PendingRepo
 	paymentRepo outport.PaymentRepo
 	dispatcher  *entity.Dispatcher
@@ -23,14 +27,9 @@ func NewPaymentManagerService(
 	maxWorker int,
 	log logger.Logger,
 ) (*PaymentManagerService, error) {
-	processFn := func(tx *entity.PaymentTX) error {
-		// TODO implement
-		return nil
-	}
-
-	disp := entity.NewDispatcher(rootCtx, maxWorker, processFn)
-
+	disp := entity.NewDispatcher(rootCtx, maxWorker)
 	return &PaymentManagerService{
+		paymentProc: payProc,
 		pandingRepo: panRep,
 		paymentRepo: payRep,
 		dispatcher:  disp,
@@ -38,168 +37,149 @@ func NewPaymentManagerService(
 	}, nil
 }
 
-// func (d *Dispatcher) Add(tx *TX) error {
-// 	d.mu.Lock()
+func (ps *PaymentManagerService) PaymentCMD(
+	ctx context.Context,
+	req *inport.PaymentRequest,
+) (*inport.TXConfirmation, error) {
+	tx, err := entity.NewPaymentTXFromDTO(*req)
+	if err != nil {
+		return nil, err
+	}
 
-// 	// Проверяем не завершён ли диспетчер
-// 	select {
-// 	case <-d.ctx.Done():
-// 		d.mu.Unlock()
-// 		return fmt.Errorf("dispatcher is shutting down")
-// 	default:
-// 	}
+	err = ps.paymentRepo.InsertTX(ctx, tx.ToRecord())
+	if err != nil {
+		return nil, err
+	}
 
-// 	gA := d.ibanToGroup[tx.IBANfrom]
-// 	gB := d.ibanToGroup[tx.IBANto]
+	if err := ps.add(ctx, tx); err != nil {
+		return nil, err
+	}
 
-// 	var g *Group
+	return &inport.TXConfirmation{
+		TXID:     tx.TXID,
+		Status:   string(valobj.Pending),
+		Metadata: tx.Metadata.Touch().String(),
+	}, nil
+}
 
-// 	switch {
-// 	case gA == nil && gB == nil:
-// 		// Захватываем слот семафора не блокируя мьютекс
-// 		d.mu.Unlock()
-// 		select {
-// 		case d.semaphore <- struct{}{}:
-// 		case <-d.ctx.Done():
-// 			return fmt.Errorf("dispatcher is shutting down")
-// 		}
-// 		d.mu.Lock()
-// 		// Перепроверяем после повторного захвата мьютекса —
-// 		// пока ждали семафор другая горутина могла создать группу
-// 		gA = d.ibanToGroup[tx.IBANfrom]
-// 		gB = d.ibanToGroup[tx.IBANto]
-// 		if gA != nil || gB != nil {
-// 			// Группа появилась пока ждали — рекурсивно не идём,
-// 			// просто добавляем в существующую
-// 			g = gA
-// 			if g == nil {
-// 				g = gB
-// 			}
-// 			d.ibanToGroup[tx.IBANfrom] = g
-// 			d.ibanToGroup[tx.IBANto] = g
-// 			// Возвращаем слот — новый воркер не нужен
-// 			<-d.semaphore
-// 		} else {
-// 			g = newGroup(d.ctx)
-// 			d.ibanToGroup[tx.IBANfrom] = g
-// 			d.ibanToGroup[tx.IBANto] = g
-// 			d.wg.Add(1)
-// 			go d.runWorker(g)
-// 		}
-// 		d.mu.Unlock()
+func (ps *PaymentManagerService) add(ctx context.Context, tx *entity.PaymentTX) error {
+	ps.dispatcher.Mu.Lock()
 
-// 	case gA != nil && gB == nil:
-// 		g = gA
-// 		d.ibanToGroup[tx.IBANto] = g
-// 		d.mu.Unlock()
+	select {
+	case <-ps.dispatcher.RootCtx.Done():
+		ps.dispatcher.Mu.Unlock()
+		return corerr.ErrDispatcherShuting
+	default:
+	}
 
-// 	case gA == nil && gB != nil:
-// 		g = gB
-// 		d.ibanToGroup[tx.IBANfrom] = g
-// 		d.mu.Unlock()
+	gA := ps.dispatcher.IbanToGroup[tx.CredIBAN()]
+	gB := ps.dispatcher.IbanToGroup[tx.DebIBAN()]
 
-// 	case gA == gB:
-// 		g = gA
-// 		d.mu.Unlock()
+	var g *entity.Group
 
-// 	default: // merge gA + gB
-// 		g = gA
-// 		// Останавливаем воркер gB через workerCancelSig — он завершится
-// 		// после текущего TX, семафор освободит сам
-// 		gB.workerCancelSig()
-// 		// Дренируем буфер gB → gA пока держим мьютекс
-// 	drain:
-// 		for {
-// 			select {
-// 			case pending := <-gB.ch:
-// 				gA.ch <- pending
-// 			default:
-// 				break drain
-// 			}
-// 		}
-// 		for iban, grp := range d.ibanToGroup {
-// 			if grp == gB {
-// 				d.ibanToGroup[iban] = gA
-// 			}
-// 		}
-// 		d.mu.Unlock()
-// 	}
+	switch {
+	case gA == nil && gB == nil:
+		ps.dispatcher.Mu.Unlock()
+		select {
+		case ps.dispatcher.Semaphore <- struct{}{}:
+		case <-ps.dispatcher.RootCtx.Done():
+			return corerr.ErrDispatcherShuting
+		}
+		ps.dispatcher.Mu.Lock()
 
-// 	// Неблокирующая отправка с учётом shutdown
-// 	select {
-// 	case g.ch <- tx:
-// 		return nil
-// 	case <-d.ctx.Done():
-// 		return fmt.Errorf("dispatcher is shutting down")
-// 	}
-// }
+		gA = ps.dispatcher.IbanToGroup[tx.CredIBAN()]
+		gB = ps.dispatcher.IbanToGroup[tx.DebIBAN()]
+		if gA != nil || gB != nil {
 
-// func (d *Dispatcher) runWorker(g *Group) {
-// 	defer d.wg.Done()
-// 	defer func() { <-d.semaphore }() // освобождаем слот при любом выходе
+			g = gA
+			if g == nil {
+				g = gB
+			}
+			ps.dispatcher.IbanToGroup[tx.DebIBAN()] = g
+			ps.dispatcher.IbanToGroup[tx.CredIBAN()] = g
 
-// 	for {
-// 		select {
-// 		case tx := <-g.ch:
-// 			d.process(tx)
+			<-ps.dispatcher.Semaphore
+		} else {
+			g = entity.NewGroup(ps.dispatcher.RootCtx)
+			ps.dispatcher.IbanToGroup[tx.DebIBAN()] = g
+			ps.dispatcher.IbanToGroup[tx.CredIBAN()] = g
+			ps.dispatcher.Wg.Add(1)
+			go ps.runWorker(g)
+		}
+		ps.dispatcher.Mu.Unlock()
 
-// 		case <-g.ctx.Done():
-// 			// Группа слита или диспетчер завершается —
-// 			// дочитываем оставшееся в буфере перед выходом
-// 			for {
-// 				select {
-// 				case tx := <-g.ch:
-// 					d.process(tx)
-// 				default:
-// 					return // буфер пуст — выходим
-// 				}
-// 			}
-// 		}
-// 	}
-// }
+	case gA != nil && gB == nil:
+		g = gA
+		ps.dispatcher.IbanToGroup[tx.CredIBAN()] = g
+		ps.dispatcher.Mu.Unlock()
 
-// // Shutdown — graceful: ждём завершения всех воркеров
-// func (d *Dispatcher) Shutdown() {
-// 	// ctx диспетчера отменяется снаружи через workerCancelSig переданный в NewDispatcher
-// 	d.wg.Wait()
-// }
+	case gA == nil && gB != nil:
+		g = gB
+		ps.dispatcher.IbanToGroup[tx.DebIBAN()] = g
+		ps.dispatcher.Mu.Unlock()
 
-// // ──────────────────────────────────────────────
-// // Main
-// // ──────────────────────────────────────────────
+	case gA == gB:
+		g = gA
+		ps.dispatcher.Mu.Unlock()
 
-// func main() {
-// 	ctx, workerCancelSig := context.WithCancel(context.Background())
+	default:
+		g = gA
+		gB.WorkerCancelSig()
+	drain:
+		for {
+			select {
+			case pending := <-gB.Ch:
+				gA.Ch <- pending
+			default:
+				break drain
+			}
+		}
+		for iban, grp := range ps.dispatcher.IbanToGroup {
+			if grp == gB {
+				ps.dispatcher.IbanToGroup[iban] = gA
+			}
+		}
+		ps.dispatcher.Mu.Unlock()
+	}
 
-// 	var txWg sync.WaitGroup
+	// Неблокирующая отправка с учётом shutdown
+	select {
+	case g.Ch <- tx:
+		return nil
+	case <-ps.dispatcher.RootCtx.Done():
+		return corerr.ErrDispatcherShuting
+	}
+}
 
-// 	d := NewDispatcher(ctx, 5, func(tx *TX) {
-// 		// fmt.Printf("  → start: %s (%s→%s)\n", tx.ID, tx.IBANfrom, tx.IBANto)
-// 		time.Sleep(200 * time.Millisecond)
-// 		fmt.Printf("  ✓ done:  %s\n", tx.ID)
-// 		txWg.Done()
-// 	})
+func (ps *PaymentManagerService) runWorker(g *entity.Group) {
+	defer ps.dispatcher.Wg.Done()
+	defer func() { <-ps.dispatcher.Semaphore }() // освобождаем слот при любом выходе
 
-// 	txs := []*TX{
-// 		{ID: "tx-1", IBANfrom: "A", IBANto: "B"},
-// 		{ID: "tx-2", IBANfrom: "B", IBANto: "C"},
-// 		{ID: "tx-3", IBANfrom: "K", IBANto: "Z"},
-// 		{ID: "tx-5", IBANfrom: "K", IBANto: "X"},
-// 		{ID: "tx-6", IBANfrom: "X", IBANto: "Z"},
-// 		{ID: "tx-10", IBANfrom: "F", IBANto: "L"},
-// 	}
+	for {
+		select {
+		case tx := <-g.Ch:
+			err := ps.paymentProc.ProcessTX(ps.dispatcher.RootCtx, tx.ToTxRequest()) // Передаем на вторичный адаптер
+			if err != nil {
+				ps.log.Error(err.Error())
+			}
+		case <-g.GrCtx.Done():
+			for {
+				select {
+				case tx := <-g.Ch:
+					err := ps.paymentProc.ProcessTX(ps.dispatcher.RootCtx, tx.ToTxRequest())
+					if err != nil {
+						ps.log.Error(err.Error())
+					}
+				default:
+					return
+				}
+			}
+		}
+	}
+}
 
-// 	txWg.Add(len(txs))
-
-// 	for _, tx := range txs {
-// 		if err := d.Add(tx); err != nil {
-// 			fmt.Println("add error:", err)
-// 		}
-// 	}
-
-// 	txWg.Wait()       // все TX обработаны
-// 	workerCancelSig() // сигнал всем воркерам завершаться
-// 	d.Shutdown()      // ждём чистого выхода горутин
-
-// 	fmt.Println("\nвсе TX обработаны, диспетчер остановлен")
-// }
+// Shutdown — graceful: ждём завершения всех воркеров
+func (ps *PaymentManagerService) Shutdown() {
+	// ctx диспетчера отменяется снаружи через workerCancelSig переданный в NewDispatcher
+	ps.dispatcher.Wg.Wait()
+}

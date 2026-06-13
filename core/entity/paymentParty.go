@@ -4,6 +4,7 @@ import (
 	"github.com/Reddetk/CBTraining/core/consts"
 	corerr "github.com/Reddetk/CBTraining/core/coreErrors"
 	valobj "github.com/Reddetk/CBTraining/core/valObj"
+	inport "github.com/Reddetk/CBTraining/ports/inports"
 	outport "github.com/Reddetk/CBTraining/ports/outports"
 )
 
@@ -26,6 +27,18 @@ func NewPaymentParty(
 		contryOfResidence: countryOfResidence,
 		name:              name,
 	}, nil
+}
+
+func NewPaymentPartyFromDTO(ppDTO inport.PaymentPartyDTO) (*PaymentParty, error) {
+	cor, err := valobj.ParseCountryOfResidence(ppDTO.ContryOfResidence)
+	if err != nil {
+		return nil, err
+	}
+	role, err := valobj.ValRole(ppDTO.Role)
+	if err != nil {
+		return nil, err
+	}
+	return NewPaymentParty(ppDTO.BIC, role, cor, ppDTO.Name)
 }
 
 func validateBIC(BIC string) error {
