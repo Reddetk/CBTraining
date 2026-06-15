@@ -96,7 +96,7 @@ Message key: `paymentId` — ensures ordered processing per payment within a sin
 
 ER diagram(without outbox)
 
-![ER](./docs/Queue%20manager.svg)
+![ER](./docs//cbtER.svg)
 
 ## Arhitecture
 
