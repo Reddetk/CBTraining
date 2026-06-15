@@ -10,26 +10,26 @@ type PayManager interface {
 }
 
 type PaymentRequest struct {
-	Amount                 string             `json:"amount"`
-	Currency               string             `json:"currency"`
-	EndToEndIdentification string             `json:"endToEndIdentification"`
-	TransactionType        string             `json:"transactionType"`
-	Debitor                *PaymentPartyDTO   `json:"debitor"`
-	DebitorPacc            *PaymentAccountDTO `json:"debitorPacc"`
-	Creditor               *PaymentPartyDTO   `json:"creditor"`
-	CreditorPacc           *PaymentAccountDTO `json:"creditorPacc"`
+	Amount                 string             `json:"amount" binding:"required"`
+	Currency               string             `json:"currency" binding:"required"`
+	EndToEndIdentification string             `json:"endToEndIdentification" binding:"required"`
+	TransactionType        string             `json:"transactionType" binding:"required"`
+	Debtor                 *PaymentPartyDTO   `json:"debtor" binding:"required"`
+	DebtorPacc             *PaymentAccountDTO `json:"debtorPacc" binding:"required"`
+	Creditor               *PaymentPartyDTO   `json:"creditor" binding:"required"`
+	CreditorPacc           *PaymentAccountDTO `json:"creditorPacc" binding:"required"`
 }
 
 type PaymentPartyDTO struct {
-	BIC               string `json:"bic"`
-	Role              string `json:"role"`
-	ContryOfResidence string `json:"contryOfResidence"`
-	Name              string `json:"name"`
+	BIC               string `json:"bic" binding:"required"`
+	Role              string `json:"role" binding:"required"`
+	ContryOfResidence string `json:"contryOfResidence" binding:"required"`
+	Name              string `json:"name" binding:"required"`
 }
 
 type PaymentAccountDTO struct {
-	IBAN       string `json:"iban"`
-	AccCurency string `json:"accCurency"`
+	IBAN       string `json:"iban" binding:"required"`
+	AccCurency string `json:"accCurency" binding:"required"`
 }
 
 type PaymentResult struct {

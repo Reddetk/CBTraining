@@ -16,7 +16,7 @@ definitions:
     properties:
       creditorAccount:
         $ref: '#/definitions/inport.PaymentAccountDTO'
-      debitorAccount:
+      debtorAccount:
         $ref: '#/definitions/inport.PaymentAccountDTO'
       metadata:
         type: string
@@ -46,9 +46,9 @@ definitions:
         $ref: '#/definitions/inport.PaymentAccountDTO'
       currency:
         type: string
-      debitor:
+      debtor:
         $ref: '#/definitions/inport.PaymentPartyDTO'
-      debitorPacc:
+      debtorPacc:
         $ref: '#/definitions/inport.PaymentAccountDTO'
       endToEndIdentification:
         type: string

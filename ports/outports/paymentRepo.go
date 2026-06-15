@@ -15,7 +15,7 @@ type TXRecord struct {
 	Currency               string
 	EndToEndIdentification string
 	TransactionType        string
-	DebitorPacc            *PARecord
+	DebtorPacc             *PARecord
 	CreditorPacc           *PARecord
 	Metadata               string
 }

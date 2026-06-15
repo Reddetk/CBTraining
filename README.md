@@ -38,7 +38,7 @@ amount:                     decimal.Decimal (NUMERIC)
 currency(VO):               char(len 3)
 endToEndIdentification(VO): string(len 1-35) {prefix}.{YYYYMMDD}.{seq}  (ISO 20022)
 transactionType:            int(len 3)
-debitorPAccID:              IBAN
+debtorPAccID:              IBAN
 creditorPAccID:             IBAN
 
 Metadata (VO):              Created_at (), updated_at() 
@@ -48,7 +48,7 @@ Metadata (VO):              Created_at (), updated_at()
 
 ```
 ID:                     BIC
-role(VO):               debitor/creditor 
+role(VO):               debtor/creditor 
 countryOfResidence(VO): char(len 2)(ContryCode  ISO 3166-1 alpha-2.)
 name:                   string -not safe typing with `` and other
 ```
@@ -74,7 +74,7 @@ type TXRequest struct {
  Currency               string
  EndToEndIdentification string
 transactionType string
- DebitorIBAN            string
+ DebtorIBAN            string
  CreditorIBAN           string
  Metadata               string
 }

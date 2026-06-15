@@ -67,7 +67,6 @@ func main() {
 
 	kafkaWriter := kafka.NewWriter(kafka.WriterConfig{
 		Brokers: kafkaBrokers,
-		Topic:   cfg.Kafka.RequestTopic,
 	})
 	defer kafkaWriter.Close()
 

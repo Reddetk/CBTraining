@@ -13,13 +13,13 @@ import (
 type Role string
 
 const (
-	Debitor  Role = "debitor"
+	Debtor   Role = "debtor"
 	Creditor Role = "creditor"
 )
 
 func ValRole(s string) (Role, error) {
-	if s == "debitor" {
-		return Debitor, nil
+	if s == "debtor" {
+		return Debtor, nil
 	}
 	if s == "creditor" {
 		return Creditor, nil
@@ -49,7 +49,7 @@ func NewMetadata(input string) (Metadata, error) {
 
 // NewMetadataNow creates Metadata with current time for both timestamps
 func NewMetadataNow() Metadata {
-	return Metadata{СreatedAt: time.Now(), UpdatedAt: time.Now()}
+	return Metadata{СreatedAt: time.Now().UTC(), UpdatedAt: time.Now()}
 }
 
 // Touch returns new Metadata with updated updatedAt -- immutable update

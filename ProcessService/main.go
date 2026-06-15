@@ -21,7 +21,7 @@ type TXRequest struct {
 	Currency               string `json:"Currency"`
 	EndToEndIdentification string `json:"EndToEndIdentification"`
 	TransactionType        string `json:"TransactionType"`
-	DebitorIBAN            string `json:"DebitorIBAN"`
+	DebtorIBAN             string `json:"DebtorIBAN"`
 	CreditorIBAN           string `json:"CreditorIBAN"`
 	Metadata               string `json:"Metadata"`
 }
@@ -62,7 +62,6 @@ func main() {
 
 	writer := &kafka.Writer{
 		Addr:     kafka.TCP(*brokers),
-		Topic:    *topicResp,
 		Balancer: &kafka.Hash{},
 	}
 	defer writer.Close()
@@ -94,10 +93,10 @@ func main() {
 			logger.Info("processing", "txid", req.TXID, "delay", delay)
 			time.Sleep(delay)
 
-			result := "SUCCESS"
+			result := "completed"
 			metadata := ""
 			if rand.Float64() < *failureRate {
-				result = "FAILED"
+				result = "failed"
 				metadata = "simulated processing failure"
 			}
 
@@ -108,6 +107,7 @@ func main() {
 			})
 
 			if err := writer.WriteMessages(ctx, kafka.Message{
+				Topic: *topicResp,
 				Key:   msg.Key,
 				Value: payload,
 			}); err != nil {

@@ -105,8 +105,7 @@ tasks:
   infra-up:
     desc: "Start infrastructure containers (Postgres + Kafka + Stub)"
     cmds:
-      - docker-compose --env-file .env.{{.ENV}} up -d postgres kafka stub
-
+      - docker-compose --env-file .env.{{.ENV}} up -d --build postgres kafka stub
   infra-down:
     desc: Stop infrastructure containers
     cmds:

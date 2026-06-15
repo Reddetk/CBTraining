@@ -2,39 +2,55 @@ package postgres
 
 import (
 	"context"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"time"
 
 	outport "github.com/Reddetk/CBTraining/ports/outports"
+	"github.com/jackc/pgx/v5"
 	"go.uber.org/zap"
 )
 
-func (r *Repository) GetTXByID(ctx context.Context, TXID string) (*outport.TXRecord, error) {
+func (r *Repository) GetTXByID(ctx context.Context, txid string) (*outport.TXRecord, error) {
 	query := `
         SELECT
-            t.tx_id,
+            t.txid,
             t.status,
             t.amount,
             t.currency,
-            t.end_to_end_identification,
-            t.metadata,
+            t.end_to_end_id,
+            t.created_at,
+            t.updated_at,
 
-            da.iban,          da.acc_currency,
-            dp.bic,           dp.role,   dp.country_of_residence,  dp.name,
+            debtor_acc.iban,
+            debtor_acc.account_currency,
+            debtor_party.bic,
+            debtor_party.role,
+            debtor_party.country_of_residence,
+            debtor_party.name,
 
-            ca.iban,          ca.acc_currency,
-            cp.bic,           cp.role,   cp.country_of_residence,  cp.name
-        FROM transactions t
-        JOIN payment_accounts da ON da.pacc_id = t.debtor_pacc_id
-        JOIN parties          dp ON dp.party_id = da.party_id
-        JOIN payment_accounts ca ON ca.pacc_id = t.creditor_pacc_id
-        JOIN parties          cp ON cp.party_id = ca.party_id
-        WHERE t.tx_id = $1
+            creditor_acc.iban,
+            creditor_acc.account_currency,
+            creditor_party.bic,
+            creditor_party.role,
+            creditor_party.country_of_residence,
+            creditor_party.name
+        FROM tx_history t
+        JOIN pa_registry    debtor_acc    ON debtor_acc.iban    = t.debtor_account_id
+        JOIN party_registry debtor_party  ON debtor_party.bic   = debtor_acc.party_bic
+        JOIN pa_registry    creditor_acc  ON creditor_acc.iban  = t.creditor_account_id
+        JOIN party_registry creditor_party ON creditor_party.bic = creditor_acc.party_bic
+        WHERE t.txid = $1
     `
 
-	row := r.db.QueryRow(ctx, query, TXID)
+	row := r.db.QueryRow(ctx, query, txid)
 
 	var tx outport.TXRecord
-	tx.DebitorPacc = &outport.PARecord{Party: &outport.PartyRecord{}}
+	tx.DebtorPacc = &outport.PARecord{Party: &outport.PartyRecord{}}
 	tx.CreditorPacc = &outport.PARecord{Party: &outport.PartyRecord{}}
+
+	var updatedAt, createdAt time.Time
 
 	err := row.Scan(
 		&tx.TXID,
@@ -42,14 +58,15 @@ func (r *Repository) GetTXByID(ctx context.Context, TXID string) (*outport.TXRec
 		&tx.Amount,
 		&tx.Currency,
 		&tx.EndToEndIdentification,
-		&tx.Metadata,
+		&createdAt,
+		&updatedAt,
 
-		&tx.DebitorPacc.IBAN,
-		&tx.DebitorPacc.AccCurency,
-		&tx.DebitorPacc.Party.BIC,
-		&tx.DebitorPacc.Party.Role,
-		&tx.DebitorPacc.Party.ContryOfResidence,
-		&tx.DebitorPacc.Party.Name,
+		&tx.DebtorPacc.IBAN,
+		&tx.DebtorPacc.AccCurency,
+		&tx.DebtorPacc.Party.BIC,
+		&tx.DebtorPacc.Party.Role,
+		&tx.DebtorPacc.Party.ContryOfResidence,
+		&tx.DebtorPacc.Party.Name,
 
 		&tx.CreditorPacc.IBAN,
 		&tx.CreditorPacc.AccCurency,
@@ -58,10 +75,22 @@ func (r *Repository) GetTXByID(ctx context.Context, TXID string) (*outport.TXRec
 		&tx.CreditorPacc.Party.ContryOfResidence,
 		&tx.CreditorPacc.Party.Name,
 	)
-	if err != nil {
-		r.logger.Error("failed to scan transaction", zap.String("txid", TXID), zap.Error(err))
-		return nil, err
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, nil
 	}
+	if err != nil {
+		r.logger.Error("failed to scan transaction", zap.String("txid", txid), zap.Error(err))
+		return nil, fmt.Errorf("GetTXByID scan: %w", err)
+	}
+
+	metaBytes, err := json.Marshal(map[string]string{
+		"created_at": createdAt.UTC().Format(time.RFC3339),
+		"updated_at": updatedAt.UTC().Format(time.RFC3339),
+	})
+	if err != nil {
+		return nil, fmt.Errorf("GetTXByID marshal metadata: %w", err)
+	}
+	tx.Metadata = string(metaBytes)
 
 	return &tx, nil
 }

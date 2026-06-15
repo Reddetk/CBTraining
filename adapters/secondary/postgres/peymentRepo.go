@@ -3,6 +3,7 @@ package postgres
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"time"
 
@@ -31,6 +32,61 @@ func (r *Repository) InsertTX(ctx context.Context, p outport.TXRecord) error {
 	}
 	defer tx.Rollback(ctx)
 
+	// 1. Upsert debtor party
+	_, err = tx.Exec(ctx, `
+        INSERT INTO party_registry (bic, role, country_of_residence, name)
+        VALUES ($1, $2, $3, $4)
+        ON CONFLICT (bic) DO NOTHING`,
+		p.DebtorPacc.Party.BIC,
+		p.DebtorPacc.Party.Role,
+		p.DebtorPacc.Party.ContryOfResidence,
+		p.DebtorPacc.Party.Name,
+	)
+	if err != nil {
+		r.logger.Error("failed to upsert debtor party", zap.String("bic", p.DebtorPacc.Party.BIC), zap.Error(err))
+		return fmt.Errorf("InsertTX upsert debtor party: %w", err)
+	}
+
+	// 2. Upsert creditor party
+	_, err = tx.Exec(ctx, `
+        INSERT INTO party_registry (bic, role, country_of_residence, name)
+        VALUES ($1, $2, $3, $4)
+        ON CONFLICT (bic) DO NOTHING`,
+		p.CreditorPacc.Party.BIC,
+		p.CreditorPacc.Party.Role,
+		p.CreditorPacc.Party.ContryOfResidence,
+		p.CreditorPacc.Party.Name,
+	)
+	if err != nil {
+		r.logger.Error("failed to upsert creditor party", zap.String("bic", p.CreditorPacc.Party.BIC), zap.Error(err))
+		return fmt.Errorf("InsertTX upsert creditor party: %w", err)
+	}
+
+	// 3. Upsert debtor account
+	_, err = tx.Exec(ctx, `
+        INSERT INTO pa_registry (iban, account_currency, party_bic)
+        VALUES ($1, $2, $3)
+        ON CONFLICT (iban) DO NOTHING`,
+		p.DebtorPacc.IBAN, p.DebtorPacc.AccCurency, p.DebtorPacc.Party.BIC,
+	)
+	if err != nil {
+		r.logger.Error("failed to upsert debtor account", zap.String("iban", p.DebtorPacc.IBAN), zap.Error(err))
+		return fmt.Errorf("InsertTX upsert debtor account: %w", err)
+	}
+
+	// 4. Upsert creditor account
+	_, err = tx.Exec(ctx, `
+        INSERT INTO pa_registry (iban, account_currency, party_bic)
+        VALUES ($1, $2, $3)
+        ON CONFLICT (iban) DO NOTHING`,
+		p.CreditorPacc.IBAN, p.CreditorPacc.AccCurency, p.CreditorPacc.Party.BIC,
+	)
+	if err != nil {
+		r.logger.Error("failed to upsert creditor account", zap.String("iban", p.CreditorPacc.IBAN), zap.Error(err))
+		return fmt.Errorf("InsertTX upsert creditor account: %w", err)
+	}
+
+	// 5. Вставка транзакции
 	_, err = tx.Exec(ctx, `
         INSERT INTO tx_history (
             txid, status, amount, currency,
@@ -44,8 +100,8 @@ func (r *Repository) InsertTX(ctx context.Context, p outport.TXRecord) error {
         )`,
 		p.TXID, p.Status, p.Amount, p.Currency,
 		p.EndToEndIdentification, p.TransactionType,
-		p.DebitorPacc.IBAN, p.CreditorPacc.IBAN,
-		time.Now().UTC(), time.Now().UTC(),
+		p.DebtorPacc.IBAN, p.CreditorPacc.IBAN,
+		now, now,
 	)
 	if err != nil {
 		r.logger.Error("failed to insert into tx_history", zap.String("txid", p.TXID), zap.Error(err))
@@ -61,28 +117,11 @@ func (r *Repository) InsertTX(ctx context.Context, p outport.TXRecord) error {
 		return fmt.Errorf("InsertTX insert pending: %w", err)
 	}
 
-	_, err = tx.Exec(ctx, `
-        INSERT INTO outbox (topic, payload, created_at)
-        VALUES (
-            'payment.processing.request',
-            jsonb_build_object(
-                'txid',            $1,
-                'debtorAccount',   $2,
-                'creditorAccount', $3
-            ),
-			NOW()
-        )`,
-		p.TXID, p.DebitorPacc.IBAN, p.CreditorPacc.IBAN,
-	)
-	if err != nil {
-		r.logger.Error("failed to insert into outbox", zap.String("txid", p.TXID), zap.Error(err))
-		return fmt.Errorf("InsertTX insert outbox: %w", err)
-	}
-
 	if err = tx.Commit(ctx); err != nil {
 		r.logger.Error("failed to commit transaction", zap.String("txid", p.TXID), zap.Error(err))
 		return fmt.Errorf("InsertTX commit: %w", err)
 	}
+
 	r.logger.Info("inserted new transaction", zap.String("txid", p.TXID))
 	return nil
 }
@@ -167,7 +206,7 @@ func (r *Repository) LoadPendingPayments(ctx context.Context) ([]outport.TXRecor
 
 		debtor.Party = &dp
 		creditor.Party = &cp
-		rec.DebitorPacc = &debtor
+		rec.DebtorPacc = &debtor
 		rec.CreditorPacc = &creditor
 
 		result = append(result, rec)
@@ -182,7 +221,7 @@ func (r *Repository) LoadPendingPayments(ctx context.Context) ([]outport.TXRecor
 	return result, nil
 }
 
-func (r *Repository) PersistProcessResult(ctx context.Context, txID, result string) error {
+func (r *Repository) PersistProcessResult(ctx context.Context, txID, result string) error { // TODO Atomicity
 	tag, err := r.db.Exec(ctx, `
         UPDATE tx_history
         SET    status     = $2,
@@ -245,34 +284,27 @@ func (r *Repository) ProcessTX(ctx context.Context, p outport.TXRequest) error {
 	}
 
 	// INSERT INTO outbox
+	payload, err := json.Marshal(map[string]any{
+		"txid":            p.TXID,
+		"status":          p.Status,
+		"amount":          p.Amount,
+		"currency":        p.Currency,
+		"endToEndId":      p.EndToEndIdentification,
+		"transactionType": p.TransactionType,
+		"debtorIBAN":      p.DebtorIBAN,
+		"creditorIBAN":    p.CreditorIBAN,
+		"metadata":        p.Metadata,
+	})
+	if err != nil {
+		r.logger.Error("marshal outbox payload: ", zap.Error(err))
+		return fmt.Errorf("marshal outbox payload: %w", err)
+	}
+
 	_, err = tx.Exec(ctx, `
-        INSERT INTO outbox (topic, payload, created_at)
-        VALUES (
-            'payment.processing.request',
-            jsonb_build_object(
-                'txid',            $1,
-                'status',          $2,
-                'amount',          $3,
-                'currency',        $4,
-                'endToEndId',      $5,
-                'transactionType', $6,
-                'debitorIBAN',     $7,
-                'creditorIBAN',    $8,
-                'metadata',        $9
-            ),
-            $10
-        )
-    `,
-		p.TXID,
-		p.Status,
-		p.Amount,
-		p.Currency,
-		p.EndToEndIdentification,
-		p.TransactionType,
-		p.DebitorIBAN,
-		p.CreditorIBAN,
-		p.Metadata,
-		now,
+    INSERT INTO outbox (txid, topic, payload, created_at)
+    VALUES ($1, 'payment.processing.request', $2, $3)
+`,
+		p.TXID, payload, now,
 	)
 	if err != nil {
 		r.logger.Error("failed to insert into outbox", zap.String("txid", p.TXID), zap.Error(err))

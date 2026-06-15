@@ -30,7 +30,7 @@ func (c *Consumer) Run(ctx context.Context) error {
 	c.logger.Info("kfconsumer: started payment.processing.response consumer")
 
 	for {
-		m, err := c.consumer.ReadMessage(ctx)
+		m, err := c.consumer.FetchMessage(ctx)
 		if err != nil {
 
 			if ctx.Err() != nil {
@@ -50,7 +50,7 @@ func (c *Consumer) Run(ctx context.Context) error {
 		}
 
 		c.logger.Info("kfconsumer: received payment result",
-			zap.String("txid", pr.TXID),
+			zap.String("txid", pr.TXID), zap.String("result", pr.Result),
 		)
 
 		if err := c.payManager.StorePaymentResult(ctx, &pr); err != nil {
@@ -61,8 +61,14 @@ func (c *Consumer) Run(ctx context.Context) error {
 			continue
 		}
 
+		if err := c.consumer.CommitMessages(ctx, m); err != nil {
+			c.logger.Error("failed to commit", zap.Error(err))
+		}
+
 		c.logger.Info("kfconsumer: payment result stored",
 			zap.String("txid", pr.TXID),
 		)
 	}
 }
+
+// INB191683861

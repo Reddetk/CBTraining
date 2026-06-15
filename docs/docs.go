@@ -123,7 +123,7 @@ const docTemplate = `{
                 "creditorAccount": {
                     "$ref": "#/definitions/inport.PaymentAccountDTO"
                 },
-                "debitorAccount": {
+                "debtorAccount": {
                     "$ref": "#/definitions/inport.PaymentAccountDTO"
                 },
                 "metadata": {
@@ -169,10 +169,10 @@ const docTemplate = `{
                 "currency": {
                     "type": "string"
                 },
-                "debitor": {
+                "debtor": {
                     "$ref": "#/definitions/inport.PaymentPartyDTO"
                 },
-                "debitorPacc": {
+                "debtorPacc": {
                     "$ref": "#/definitions/inport.PaymentAccountDTO"
                 },
                 "endToEndIdentification": {

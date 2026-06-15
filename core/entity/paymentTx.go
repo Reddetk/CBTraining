@@ -19,14 +19,14 @@ type PaymentTX struct {
 	Currency               valobj.Currency
 	EndToEndIdentification valobj.EndToEndIdentification
 	TransactionType        string
-	DebitorPacc            *PaymentAccount
+	DebtorPacc             *PaymentAccount
 	CreditorPacc           *PaymentAccount
 	Metadata               valobj.Metadata
 }
 
 func NewPaymentTX(
 	TXID string, status valobj.Status, amount decimal.Decimal, currency valobj.Currency,
-	endToEndIdentification valobj.EndToEndIdentification, transactionType string, debitorPacc *PaymentAccount,
+	endToEndIdentification valobj.EndToEndIdentification, transactionType string, debtorPacc *PaymentAccount,
 	creditorPacc *PaymentAccount, metadata valobj.Metadata,
 ) (*PaymentTX, error) {
 	return &PaymentTX{
@@ -36,7 +36,7 @@ func NewPaymentTX(
 		Currency:               currency,
 		EndToEndIdentification: endToEndIdentification,
 		TransactionType:        transactionType,
-		DebitorPacc:            debitorPacc,
+		DebtorPacc:             debtorPacc,
 		CreditorPacc:           creditorPacc,
 		Metadata:               metadata,
 	}, nil
@@ -72,7 +72,7 @@ func NewPaymentTXFromDTO(pReq inport.PaymentRequest) (*PaymentTX, error) {
 	if err != nil {
 		return nil, err
 	}
-	debPA, err := NewPAFromDTO(*pReq.DebitorPacc, *pReq.Debitor)
+	debPA, err := NewPAFromDTO(*pReq.DebtorPacc, *pReq.Debtor)
 	if err != nil {
 		return nil, err
 	}
@@ -112,7 +112,7 @@ func RecoverPaymentTXFromRec(pRec outport.TXRecord) (*PaymentTX, error) {
 	if err != nil {
 		return nil, err
 	}
-	debPA, err := RecoverPAFromRec(*pRec.DebitorPacc, *pRec.DebitorPacc.Party)
+	debPA, err := RecoverPAFromRec(*pRec.DebtorPacc, *pRec.DebtorPacc.Party)
 	if err != nil {
 		return nil, err
 	}
@@ -143,7 +143,7 @@ func (tx *PaymentTX) ToRecord() outport.TXRecord {
 		Currency:               tx.Currency.String(),
 		EndToEndIdentification: tx.EndToEndIdentification.String(),
 		TransactionType:        tx.TransactionType,
-		DebitorPacc:            tx.DebitorPacc.ToPaRecord(),
+		DebtorPacc:             tx.DebtorPacc.ToPaRecord(),
 		CreditorPacc:           tx.CreditorPacc.ToPaRecord(),
 	}
 }
@@ -156,7 +156,7 @@ func (tx *PaymentTX) ToTxRequest() outport.TXRequest {
 		Currency:               tx.Currency.String(),
 		EndToEndIdentification: tx.EndToEndIdentification.String(),
 		TransactionType:        tx.TransactionType,
-		DebitorIBAN:            tx.DebitorPacc.IBAN,
+		DebtorIBAN:             tx.DebtorPacc.IBAN,
 		CreditorIBAN:           tx.CreditorPacc.IBAN,
 	}
 }
@@ -166,5 +166,5 @@ func (tx *PaymentTX) CredIBAN() string {
 }
 
 func (tx *PaymentTX) DebIBAN() string {
-	return tx.DebitorPacc.IBAN
+	return tx.DebtorPacc.IBAN
 }

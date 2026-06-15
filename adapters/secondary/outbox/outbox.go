@@ -29,7 +29,7 @@ func NewStore(db *pgxpool.Pool, logger logger.Logger) *Store {
 
 func (s *Store) FetchUnsent(ctx context.Context, limit int) ([]Event, error) {
 	rows, err := s.db.Query(ctx, `
-        SELECT TXid, topic, payload, created_at, sent_at
+        SELECT txid, topic, payload, created_at, sent_at
         FROM outbox
         WHERE sent_at IS NULL
         ORDER BY created_at ASC
@@ -68,7 +68,7 @@ func (s *Store) MarkSent(ctx context.Context, TXids []string) error {
 	_, err := s.db.Exec(ctx, `
         UPDATE outbox
         SET sent_at = NOW()
-        WHERE TXid = ANY($1)
+        WHERE txid = ANY($1)
     `, TXids)
 	if err != nil {
 		s.logger.Error("failed to mark events as sent", zap.Error(err))

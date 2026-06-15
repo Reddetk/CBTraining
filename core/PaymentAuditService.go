@@ -33,7 +33,7 @@ func (as *PaymentAuditService) GetPaymentInfo(ctx context.Context, TXID string) 
 		TXID:            TXRec.TXID,
 		Status:          TXRec.Status,
 		CreditorAccount: &inport.PaymentAccountDTO{IBAN: TXRec.CreditorPacc.IBAN, AccCurency: TXRec.CreditorPacc.AccCurency},
-		DebitorAccount:  &inport.PaymentAccountDTO{IBAN: TXRec.DebitorPacc.IBAN, AccCurency: TXRec.DebitorPacc.AccCurency},
+		DebtorAccount:  &inport.PaymentAccountDTO{IBAN: TXRec.DebtorPacc.IBAN, AccCurency: TXRec.DebtorPacc.AccCurency},
 		Metadata:        TXRec.Metadata,
 	}, nil
 }

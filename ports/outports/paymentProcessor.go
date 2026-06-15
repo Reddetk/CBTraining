@@ -18,7 +18,7 @@ type TXRequest struct {
 	Currency               string
 	EndToEndIdentification string
 	TransactionType        string
-	DebitorIBAN            string
+	DebtorIBAN            string
 	CreditorIBAN           string
 	Metadata               string
 }
