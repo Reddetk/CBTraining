@@ -2,6 +2,7 @@ package core
 
 import (
 	"context"
+	"fmt"
 
 	corerr "github.com/Reddetk/CBTraining/core/coreErrors"
 	"github.com/Reddetk/CBTraining/core/entity"
@@ -48,7 +49,7 @@ func (ps *PaymentManagerService) pandingRecovery(ctx context.Context) error {
 	TXrecs, err := ps.pandRepo.LoadPendingPayments(ctx)
 	if err != nil {
 		ps.log.Error(err.Error())
-		return err
+		return fmt.Errorf("error of recover panding %w", corerr.ErrInfrastructure)
 	}
 	for _, TXrec := range TXrecs {
 		tx, err := entity.RecoverPaymentTXFromRec(TXrec)
@@ -78,7 +79,7 @@ func (ps *PaymentManagerService) PaymentCMD(
 	err = ps.paymentRepo.InsertTX(ctx, tx.ToRecord())
 	if err != nil {
 		ps.log.Error(err.Error())
-		return nil, err
+		return nil, corerr.ErrInfrastructure
 	}
 
 	if err := ps.add(tx); err != nil {
@@ -212,7 +213,10 @@ func (ps *PaymentManagerService) runWorker(g *entity.Group) {
 }
 
 func (ps *PaymentManagerService) StorePaymentResult(ctx context.Context, payRes *inport.PaymentResult) error {
-	return ps.paymentRepo.PersistProcessResult(ctx, payRes.TXID, payRes.Result)
+	if err := ps.paymentRepo.PersistProcessResult(ctx, payRes.TXID, payRes.Result); err != nil {
+		return fmt.Errorf("error of persist processing result %w", corerr.ErrInfrastructure)
+	}
+	return nil
 }
 
 func (ps *PaymentManagerService) Shutdown() {

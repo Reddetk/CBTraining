@@ -94,8 +94,7 @@ Message key: `paymentId` — ensures ordered processing per payment within a sin
 
 ## ER
 
-ER diagram(without outbox)
-
+ER diagram
 ![ER](./docs//cbtER.svg)
 
 ## Arhitecture

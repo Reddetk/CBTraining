@@ -2,13 +2,12 @@ package entity
 
 import (
 	"fmt"
-	"math/rand"
 	"time"
 
-	consts "github.com/Reddetk/CBTraining/core/consts"
 	valobj "github.com/Reddetk/CBTraining/core/valObj"
 	inport "github.com/Reddetk/CBTraining/ports/inports"
 	outport "github.com/Reddetk/CBTraining/ports/outports"
+	"github.com/google/uuid"
 	"github.com/shopspring/decimal"
 )
 
@@ -45,13 +44,10 @@ func NewPaymentTX(
 func genTXID() string {
 	date := time.Now().UTC().Format("20060102")
 
-	r := rand.New(rand.NewSource(time.Now().UnixNano()))
-	suffix := make([]byte, 8)
-	for i := range suffix {
-		suffix[i] = consts.Charset[r.Intn(len(consts.Charset))]
-	}
+	u := uuid.New().String()
+	suffix := u[9:17]
 
-	return fmt.Sprintf("TX-%s-%s", date, string(suffix))
+	return fmt.Sprintf("TX-%s-%s", date, suffix)
 }
 
 func NewPaymentTXFromDTO(pReq inport.PaymentRequest) (*PaymentTX, error) {

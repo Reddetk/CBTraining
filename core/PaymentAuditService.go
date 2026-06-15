@@ -3,6 +3,7 @@ package core
 
 import (
 	"context"
+	"fmt"
 
 	corerr "github.com/Reddetk/CBTraining/core/coreErrors"
 	"github.com/Reddetk/CBTraining/logger"
@@ -23,7 +24,8 @@ func NewPaymentAuditService(repo outport.PaymentRepo, logger logger.Logger) *Pay
 func (as *PaymentAuditService) GetPaymentInfo(ctx context.Context, TXID string) (*inport.PaymentInfo, error) {
 	TXRec, err := as.repo.GetTXByID(ctx, TXID)
 	if err != nil {
-		return nil, corerr.ErrInfrastructure
+		as.logger.Error(err.Error())
+		return nil, fmt.Errorf("error of geting payment info %w", corerr.ErrInfrastructure)
 	}
 	if TXRec == nil {
 		as.logger.Info("payment not found", zap.String("txid", TXID))
@@ -33,7 +35,7 @@ func (as *PaymentAuditService) GetPaymentInfo(ctx context.Context, TXID string) 
 		TXID:            TXRec.TXID,
 		Status:          TXRec.Status,
 		CreditorAccount: &inport.PaymentAccountDTO{IBAN: TXRec.CreditorPacc.IBAN, AccCurency: TXRec.CreditorPacc.AccCurency},
-		DebtorAccount:  &inport.PaymentAccountDTO{IBAN: TXRec.DebtorPacc.IBAN, AccCurency: TXRec.DebtorPacc.AccCurency},
+		DebtorAccount:   &inport.PaymentAccountDTO{IBAN: TXRec.DebtorPacc.IBAN, AccCurency: TXRec.DebtorPacc.AccCurency},
 		Metadata:        TXRec.Metadata,
 	}, nil
 }

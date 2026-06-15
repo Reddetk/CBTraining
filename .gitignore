@@ -8,3 +8,6 @@
 helper
 
 /bin
+
+BUILD_RULES.md
+TEST_IMPLEMENTATION_PLAN.md

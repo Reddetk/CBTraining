@@ -11,6 +11,9 @@ definitions:
         type: string
       iban:
         type: string
+    required:
+    - accCurency
+    - iban
     type: object
   inport.PaymentInfo:
     properties:
@@ -35,6 +38,11 @@ definitions:
         type: string
       role:
         type: string
+    required:
+    - bic
+    - contryOfResidence
+    - name
+    - role
     type: object
   inport.PaymentRequest:
     properties:
@@ -52,12 +60,17 @@ definitions:
         $ref: '#/definitions/inport.PaymentAccountDTO'
       endToEndIdentification:
         type: string
-      status:
-        type: string
       transactionType:
         type: string
-      txid:
-        type: string
+    required:
+    - amount
+    - creditor
+    - creditorPacc
+    - currency
+    - debtor
+    - debtorPacc
+    - endToEndIdentification
+    - transactionType
     type: object
 host: localhost:8080
 info:

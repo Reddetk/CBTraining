@@ -108,6 +108,10 @@ const docTemplate = `{
         },
         "inport.PaymentAccountDTO": {
             "type": "object",
+            "required": [
+                "accCurency",
+                "iban"
+            ],
             "properties": {
                 "accCurency": {
                     "type": "string"
@@ -139,6 +143,12 @@ const docTemplate = `{
         },
         "inport.PaymentPartyDTO": {
             "type": "object",
+            "required": [
+                "bic",
+                "contryOfResidence",
+                "name",
+                "role"
+            ],
             "properties": {
                 "bic": {
                     "type": "string"
@@ -156,6 +166,16 @@ const docTemplate = `{
         },
         "inport.PaymentRequest": {
             "type": "object",
+            "required": [
+                "amount",
+                "creditor",
+                "creditorPacc",
+                "currency",
+                "debtor",
+                "debtorPacc",
+                "endToEndIdentification",
+                "transactionType"
+            ],
             "properties": {
                 "amount": {
                     "type": "string"
@@ -178,13 +198,7 @@ const docTemplate = `{
                 "endToEndIdentification": {
                     "type": "string"
                 },
-                "status": {
-                    "type": "string"
-                },
                 "transactionType": {
-                    "type": "string"
-                },
-                "txid": {
                     "type": "string"
                 }
             }

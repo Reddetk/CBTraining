@@ -102,6 +102,10 @@
         },
         "inport.PaymentAccountDTO": {
             "type": "object",
+            "required": [
+                "accCurency",
+                "iban"
+            ],
             "properties": {
                 "accCurency": {
                     "type": "string"
@@ -133,6 +137,12 @@
         },
         "inport.PaymentPartyDTO": {
             "type": "object",
+            "required": [
+                "bic",
+                "contryOfResidence",
+                "name",
+                "role"
+            ],
             "properties": {
                 "bic": {
                     "type": "string"
@@ -150,6 +160,16 @@
         },
         "inport.PaymentRequest": {
             "type": "object",
+            "required": [
+                "amount",
+                "creditor",
+                "creditorPacc",
+                "currency",
+                "debtor",
+                "debtorPacc",
+                "endToEndIdentification",
+                "transactionType"
+            ],
             "properties": {
                 "amount": {
                     "type": "string"
@@ -172,13 +192,7 @@
                 "endToEndIdentification": {
                     "type": "string"
                 },
-                "status": {
-                    "type": "string"
-                },
                 "transactionType": {
-                    "type": "string"
-                },
-                "txid": {
                     "type": "string"
                 }
             }
