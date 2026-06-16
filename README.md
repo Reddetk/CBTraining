@@ -1,5 +1,72 @@
 # Payment instruction management service
 
+## Running the Service
+
+### Development
+
+To start the service via `go run` - localy:
+
+```bash
+task dev
+```
+
+To run the service in a fully container mode:
+
+```bash
+task test
+```
+
+## API Examples
+
+<http://localhost:8080/swagger/index.htm> - Swagger
+
+### Create a payment (POST)
+
+```powershell
+$body = [System.Text.Encoding]::UTF8.GetBytes(@"
+{
+    "amount": "898.00",
+    "currency": "BYN",
+    "endToEndIdentification": "HKJQ5qj02GH0bO10nD",
+    "transactionType": "001",
+    "debtor": {
+        "bic": "INB19168386",
+        "role": "debtor",
+        "contryOfResidence": "BY",
+        "name": "ОАО Банк развития"
+    },
+    "debtorPacc": {
+        "iban": "BY40BRRB18080000012345678900",
+        "accCurency": "BYN"
+    },
+    "creditor": {
+        "bic": "INB19168386",
+        "role": "creditor",
+        "contryOfResidence": "BY",
+        "name": "ОАО Банк развития"
+    },
+    "creditorPacc": {
+        "iban": "BY56NBRB370000000997755331BD",
+        "accCurency": "BYN"
+    }
+}
+"@)
+
+Invoke-RestMethod -Method POST `
+    -Uri "http://localhost:8080/api/v1/payments" `
+    -ContentType "application/json; charset=utf-8" `
+    -Body $body
+```
+
+### Get a payment by ID (GET)
+
+```powershell
+Invoke-RestMethod -Method GET `
+    -Uri "http://localhost:8080/api/v1/payments/TX-20260616-a7fa-47e" `
+    -ContentType "application/json; charset=utf-8"
+```
+
+
 queue management and execution of payment instructions.
 
 ## Functional Requirements

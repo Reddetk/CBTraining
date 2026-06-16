@@ -76,3 +76,33 @@ services:
       kafka-init:
         condition: service_completed_successfully
     restart: unless-stopped
+
+  server:
+    build:
+      context: .
+      dockerfile: Dockerfile.server
+    environment:
+      DB_HOST:     postgres
+      DB_PORT:     5432
+      DB_USER:     ${DB_USER}
+      DB_PASS:     ${DB_PASS}
+      DB_NAME:     ${DB_NAME}
+      DB_SSL:      ${DB_SSL}
+      KAFKA_HOST:  kafka
+      KAFKA_PORT:  29092
+      KAFKA_REQUEST_TOPIC:   ${KAFKA_REQUEST_TOPIC}
+      KAFKA_RESPONSE_TOPIC:  ${KAFKA_RESPONSE_TOPIC}
+      KAFKA_CONSUMER_GROUP:  ${KAFKA_CONSUMER_GROUP}
+      APP_PORT:              ${APP_PORT}
+      MAX_WORKERS:           ${MAX_WORKERS}
+      OUTBOX_BATCH_SIZE:     ${OUTBOX_BATCH_SIZE}
+      OUTBOX_INTERVAL:       ${OUTBOX_INTERVAL}
+      OUTBOX_WORKERS:        ${OUTBOX_WORKERS}
+      SHUTDOWN_TIMEOUT:      ${SHUTDOWN_TIMEOUT}
+    ports:
+      - "${APP_PORT}:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      kafka-init:
+        condition: service_completed_successfully

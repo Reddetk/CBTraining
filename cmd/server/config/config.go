@@ -104,8 +104,8 @@ func Load() *Config {
 			LocalPort:      getEnv("DB_LOCAL_PORT", "5432"),
 		},
 		Kafka: KafkaConfig{
-			Host:              requireEnv("KAFKA_HOST"),
-			Port:              getEnv("KAFKA_PORT", "9092"),
+			Host:              getKafkaHost(),
+			Port:              getKafkaPort(),
 			ControllerPort:    getEnv("KAFKA_CONTROLLER_PORT", "9093"),
 			ClusterID:         getEnv("KAFKA_CLUSTER_ID", ""),
 			Partitions:        getInt("KAFKA_PARTITIONS", 3),
@@ -129,6 +129,20 @@ func Load() *Config {
 			Timeout: getDuration("SHUTDOWN_TIMEOUT", 30*time.Second),
 		},
 	}
+}
+
+func getKafkaHost() string {
+	if v, ok := os.LookupEnv("SERVER_KAFKA_HOST"); ok && v != "" {
+		return v
+	}
+	return requireEnv("KAFKA_HOST")
+}
+
+func getKafkaPort() string {
+	if v, ok := os.LookupEnv("SERVER_KAFKA_PORT"); ok && v != "" {
+		return v
+	}
+	return getEnv("KAFKA_PORT", "9092")
 }
 
 // ──────────────────────────────────────────────

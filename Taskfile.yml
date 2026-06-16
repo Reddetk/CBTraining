@@ -23,6 +23,16 @@ tasks:
     cmds:
       - go run ./cmd/server
 
+  # ----------- test
+
+  test:
+    desc: "test: docker infra -> migrate -> docker server"
+    cmds:
+      - task: infra-up
+      - task: migrate-up
+      - task: server-up
+
+
   # ----------- build
 
   build:
@@ -99,6 +109,13 @@ tasks:
     desc: Tail stub container logs
     cmds:
       - docker-compose --env-file .env.{{.ENV}} logs -f stub
+
+  # -----------server
+
+  server-up:
+    desc: "Starting server container"
+    cmds:
+      - docker-compose --env-file .env.{{.ENV}} up -d --build server
 
   # ----------- infra
 
