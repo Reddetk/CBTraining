@@ -109,7 +109,8 @@ func MeasureLatency(fn func()) time.Duration {
 // VerifyProcessingOrder проверяет что TX обработаны в ожидаемом порядке (FIFO)
 func VerifyProcessingOrder(t *testing.T, m *MockPaymentProcessor, expectedOrder []string) bool {
 	actual := m.GetProcessedOrder()
-
+	t.Log("actual - ", actual)
+	t.Log("expected - ", expectedOrder)
 	if len(actual) != len(expectedOrder) {
 		t.Errorf("processing order length mismatch: expected %d, got %d", len(expectedOrder), len(actual))
 		return false

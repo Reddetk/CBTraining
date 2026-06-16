@@ -2,6 +2,7 @@ package entity
 
 import (
 	"context"
+	"sync/atomic"
 
 	"github.com/Reddetk/CBTraining/core/consts"
 )
@@ -35,6 +36,9 @@ type Group struct {
 	// что новые TX больше не придут и можно дочитать буфер и выйти.
 	// После вызова workerCancelSig Dispatcher перестаёт писать в g.ch.
 	WorkerCancelSig context.CancelFunc
+
+	Merging    atomic.Bool
+	DrainReady chan struct{}
 }
 
 // NewGroup создаёт новую группу привязанную к жизненному циклу parent-контекста.
@@ -47,7 +51,8 @@ func NewGroup(parent context.Context) *Group {
 	ctx, workerCancelSig := context.WithCancel(parent)
 	return &Group{
 		Ch:              make(chan *PaymentTX, consts.ChanBuffer),
-		GrCtx:             ctx,
+		GrCtx:           ctx,
 		WorkerCancelSig: workerCancelSig,
+		DrainReady:      make(chan struct{}),
 	}
 }
