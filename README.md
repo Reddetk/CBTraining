@@ -1,5 +1,72 @@
 # Payment instruction management service
 
+## Running the Service
+
+### Development
+
+To start the service via `go run` - localy:
+
+```bash
+task dev
+```
+
+To run the service in a fully container mode:
+
+```bash
+task test
+```
+
+## API Examples
+
+<http://localhost:8080/swagger/index.htm> - Swagger
+
+### Create a payment (POST)
+
+```powershell
+$body = [System.Text.Encoding]::UTF8.GetBytes(@"
+{
+    "amount": "898.00",
+    "currency": "BYN",
+    "endToEndIdentification": "HKJQ5qj02GH0bO10nD",
+    "transactionType": "001",
+    "debtor": {
+        "bic": "INB19168386",
+        "role": "debtor",
+        "contryOfResidence": "BY",
+        "name": "ОАО Банк развития"
+    },
+    "debtorPacc": {
+        "iban": "BY40BRRB18080000012345678900",
+        "accCurency": "BYN"
+    },
+    "creditor": {
+        "bic": "INB19168386",
+        "role": "creditor",
+        "contryOfResidence": "BY",
+        "name": "ОАО Банк развития"
+    },
+    "creditorPacc": {
+        "iban": "BY56NBRB370000000997755331BD",
+        "accCurency": "BYN"
+    }
+}
+"@)
+
+Invoke-RestMethod -Method POST `
+    -Uri "http://localhost:8080/api/v1/payments" `
+    -ContentType "application/json; charset=utf-8" `
+    -Body $body
+```
+
+### Get a payment by ID (GET)
+
+```powershell
+Invoke-RestMethod -Method GET `
+    -Uri "http://localhost:8080/api/v1/payments/TX-20260616-a7fa-47e" `
+    -ContentType "application/json; charset=utf-8"
+```
+
+
 queue management and execution of payment instructions.
 
 ## Functional Requirements
@@ -23,10 +90,9 @@ The external system requests the current status of a previously transmitted inst
 
 - Fault Tolerance S
 
-## Invariants
+## Deploy
 
-1. (1:1) REST Request : PaymentTx
-1. (1:1) PA : PaymentTx
+[deploy](./docs/Deployment.md)
 
 ## Agregats
 
@@ -39,7 +105,7 @@ amount:                     decimal.Decimal (NUMERIC)
 currency(VO):               char(len 3)
 endToEndIdentification(VO): string(len 1-35) {prefix}.{YYYYMMDD}.{seq}  (ISO 20022)
 transactionType:            int(len 3)
-debitorPAccID:              IBAN
+debtorPAccID:              IBAN
 creditorPAccID:             IBAN
 
 Metadata (VO):              Created_at (), updated_at() 
@@ -49,7 +115,7 @@ Metadata (VO):              Created_at (), updated_at()
 
 ```
 ID:                     BIC
-role(VO):               debitor/creditor 
+role(VO):               debtor/creditor 
 countryOfResidence(VO): char(len 2)(ContryCode  ISO 3166-1 alpha-2.)
 name:                   string -not safe typing with `` and other
 ```
@@ -74,7 +140,8 @@ type TXRequest struct {
  Amount                 decimal.Decimal
  Currency               string
  EndToEndIdentification string
- DebitorIBAN            string
+transactionType string
+ DebtorIBAN            string
  CreditorIBAN           string
  Metadata               string
 }
@@ -94,9 +161,8 @@ Message key: `paymentId` — ensures ordered processing per payment within a sin
 
 ## ER
 
-ER diagram(without outbox)
-
-![ER](./docs/Queue%20manager.svg)
+ER diagram
+![ER](./docs//cbtER.svg)
 
 ## Arhitecture
 

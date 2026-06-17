@@ -8,7 +8,7 @@ import (
 )
 
 type PaymentProcessor interface {
-	ProcessPayment(ctx context.Context, paymentData TXRequest) error
+	ProcessTX(ctx context.Context, paymentData TXRequest) error
 }
 
 type TXRequest struct {
@@ -17,7 +17,8 @@ type TXRequest struct {
 	Amount                 decimal.Decimal
 	Currency               string
 	EndToEndIdentification string
-	DebitorIBAN            string
+	TransactionType        string
+	DebtorIBAN            string
 	CreditorIBAN           string
 	Metadata               string
 }

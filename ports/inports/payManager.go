@@ -6,31 +6,30 @@ import "context"
 type PayManager interface {
 	PaymentCMD(ctx context.Context, requ *PaymentRequest) (*TXConfirmation, error)
 	StorePaymentResult(ctx context.Context, payRes *PaymentResult) error
+	Shutdown()
 }
 
 type PaymentRequest struct {
-	TXID                   string
-	Status                 string
-	Amount                 string
-	Currency               string
-	EndToEndIdentification string
-	Debitor                *PaymentPartyDTO
-	DebitorPacc            *PaymentAccountDTO
-	Creditor               *PaymentPartyDTO
-	CreditorPacc           *PaymentAccountDTO
-	Metadata               string
+	Amount                 string             `json:"amount" binding:"required"`
+	Currency               string             `json:"currency" binding:"required"`
+	EndToEndIdentification string             `json:"endToEndIdentification" binding:"required"`
+	TransactionType        string             `json:"transactionType" binding:"required"`
+	Debtor                 *PaymentPartyDTO   `json:"debtor" binding:"required"`
+	DebtorPacc             *PaymentAccountDTO `json:"debtorPacc" binding:"required"`
+	Creditor               *PaymentPartyDTO   `json:"creditor" binding:"required"`
+	CreditorPacc           *PaymentAccountDTO `json:"creditorPacc" binding:"required"`
 }
 
 type PaymentPartyDTO struct {
-	BIC               string
-	Role              string
-	ContryOfResidence string
-	Name              string
+	BIC               string `json:"bic" binding:"required"`
+	Role              string `json:"role" binding:"required"`
+	ContryOfResidence string `json:"contryOfResidence" binding:"required"`
+	Name              string `json:"name" binding:"required"`
 }
 
 type PaymentAccountDTO struct {
-	IBAN       string
-	AccCurency string
+	IBAN       string `json:"iban" binding:"required"`
+	AccCurency string `json:"accCurency" binding:"required"`
 }
 
 type PaymentResult struct {

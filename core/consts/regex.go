@@ -3,5 +3,7 @@ package consts
 
 const (
 	// Regex for endToEndIdentification: string(len 1-35) {prefix}.{YYYYMMDD}.{seq}  (ISO 20022)
-	EndToEndIdentificationRegex = `^[a-zA-Z0-9]{1,35}$`
+	EndToEndIdentificationRegex = `^[a-zA-Z0-9.]{1,35}$`
 )
+
+// BY40BRRB18080000012345678900

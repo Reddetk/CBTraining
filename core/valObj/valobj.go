@@ -2,9 +2,8 @@
 package valobj
 
 import (
-	"fmt"
+	"encoding/json"
 	"regexp"
-	"strconv"
 	"time"
 
 	"github.com/Reddetk/CBTraining/core/consts"
@@ -14,60 +13,59 @@ import (
 type Role string
 
 const (
-	Debitor  Role = "debitor"
+	Debtor   Role = "debtor"
 	Creditor Role = "creditor"
 )
 
-// Metadata represents creation/update timestamps -------------
-type Metadata struct {
-	createdAt int64 // Unix timestamp in milliseconds
-	updatedAt int64 // Unix timestamp in milliseconds
+func ValRole(s string) (Role, error) {
+	if s == "debtor" {
+		return Debtor, nil
+	}
+	if s == "creditor" {
+		return Creditor, nil
+	}
+	return "", corerr.ErrNotValidRole
 }
 
-func validateMetadata(createdAt, updatedAt int64) error {
-	if createdAt < 0 {
-		return corerr.ErrMetadataCreatedAtNegative
-	}
-	if updatedAt < 0 {
-		return corerr.ErrMetadataUpdatedAtNegative
-	}
-	if updatedAt < createdAt {
-		return corerr.ErrMetadataUpdatedBeforeCreated
-	}
-	return nil
+// Metadata represents creation/update timestamps -------------
+type Metadata struct {
+	CreatedAt time.Time `json:"created_at"` // Unix RFC3339 timestamp in milliseconds
+	UpdatedAt time.Time `json:"updated_at"` // Unix RFC3339 timestamp in milliseconds
 }
 
 // NewMetadata creates Metadata with explicit timestamps
-func NewMetadata(createdAt, updatedAt int64) (Metadata, error) {
-	if err := validateMetadata(createdAt, updatedAt); err != nil {
-		return Metadata{}, err
+func NewMetadata(input string) (Metadata, error) {
+	var mt Metadata
+	err := json.Unmarshal([]byte(input), &mt)
+	if err != nil {
+		return Metadata{}, corerr.ErrMetadataNotValid
 	}
-	return Metadata{createdAt: createdAt, updatedAt: updatedAt}, nil
+	if mt.UpdatedAt.Before(mt.CreatedAt) {
+		return Metadata{}, corerr.ErrMetadataUpdatedBeforeCreated
+	}
+
+	return mt, nil
 }
 
 // NewMetadataNow creates Metadata with current time for both timestamps
 func NewMetadataNow() Metadata {
-	now := time.Now().UnixMilli()
-	return Metadata{createdAt: now, updatedAt: now}
+	return Metadata{CreatedAt: time.Now().UTC(), UpdatedAt: time.Now()}
 }
 
 // Touch returns new Metadata with updated updatedAt -- immutable update
 func (m Metadata) Touch() Metadata {
 	return Metadata{
-		createdAt: m.createdAt,
-		updatedAt: time.Now().UnixMilli(),
+		CreatedAt: m.CreatedAt,
+		UpdatedAt: time.Now(),
 	}
 }
 
-func (m Metadata) Equals(other Metadata) bool {
-	return m.createdAt == other.createdAt && m.updatedAt == other.updatedAt
-}
-
-// String returns a created_at=%s updated_at=%s representation of Metadata
 func (m Metadata) String() string {
-	cA := strconv.FormatInt(m.createdAt, 10)
-	uA := strconv.FormatInt(m.updatedAt, 10)
-	return fmt.Sprintf("created_at=%s updated_at=%s", cA, uA)
+	jsonData, err := json.Marshal(m)
+	if err != nil {
+		return ""
+	}
+	return string(jsonData)
 }
 
 // Status represents the status of a transaction -------------
@@ -79,6 +77,21 @@ const (
 	Completed  Status = "completed"
 	Failed     Status = "failed"
 )
+
+func ValStatus(st string) (Status, error) {
+	switch {
+	case st == string(Pending):
+		return Pending, nil
+	case st == string(Processing):
+		return Processing, nil
+	case st == string(Completed):
+		return Processing, nil
+	case st == string(Failed):
+		return Processing, nil
+	default:
+		return "", corerr.ErrNotValidStatus
+	}
+}
 
 // Currency represents a 3-letter ISO currency code ------------
 type Currency struct {
@@ -97,6 +110,10 @@ func ParseCurrency(s string) (Currency, error) {
 	return Currency{Currency: s}, nil
 }
 
+func (c *Currency) String() string {
+	return c.Currency
+}
+
 // EndToEndIdentification represents a string that must match the regex pattern defined in consts -------
 type EndToEndIdentification struct {
 	Identification string `validate:"required,regex=^[a-zA-Z0-9]{1,35}$"`
@@ -107,6 +124,10 @@ func ParseEndToEndIdentification(s string) (EndToEndIdentification, error) {
 		return EndToEndIdentification{}, corerr.ErrEndToEndIdentificationInvalidFormat
 	}
 	return EndToEndIdentification{Identification: s}, nil
+}
+
+func (etei *EndToEndIdentification) String() string {
+	return etei.Identification
 }
 
 // CountryOfResidence char(len 2)(ContryCode  ISO 3166-1 alpha-2.)

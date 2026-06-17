@@ -40,12 +40,6 @@ const docTemplate = `{
                     }
                 ],
                 "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/inport.TXConfirmation"
-                        }
-                    },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
@@ -114,6 +108,10 @@ const docTemplate = `{
         },
         "inport.PaymentAccountDTO": {
             "type": "object",
+            "required": [
+                "accCurency",
+                "iban"
+            ],
             "properties": {
                 "accCurency": {
                     "type": "string"
@@ -129,7 +127,7 @@ const docTemplate = `{
                 "creditorAccount": {
                     "$ref": "#/definitions/inport.PaymentAccountDTO"
                 },
-                "debitorAccount": {
+                "debtorAccount": {
                     "$ref": "#/definitions/inport.PaymentAccountDTO"
                 },
                 "metadata": {
@@ -145,6 +143,12 @@ const docTemplate = `{
         },
         "inport.PaymentPartyDTO": {
             "type": "object",
+            "required": [
+                "bic",
+                "contryOfResidence",
+                "name",
+                "role"
+            ],
             "properties": {
                 "bic": {
                     "type": "string"
@@ -162,6 +166,16 @@ const docTemplate = `{
         },
         "inport.PaymentRequest": {
             "type": "object",
+            "required": [
+                "amount",
+                "creditor",
+                "creditorPacc",
+                "currency",
+                "debtor",
+                "debtorPacc",
+                "endToEndIdentification",
+                "transactionType"
+            ],
             "properties": {
                 "amount": {
                     "type": "string"
@@ -175,36 +189,16 @@ const docTemplate = `{
                 "currency": {
                     "type": "string"
                 },
-                "debitor": {
+                "debtor": {
                     "$ref": "#/definitions/inport.PaymentPartyDTO"
                 },
-                "debitorPacc": {
+                "debtorPacc": {
                     "$ref": "#/definitions/inport.PaymentAccountDTO"
                 },
                 "endToEndIdentification": {
                     "type": "string"
                 },
-                "metadata": {
-                    "type": "string"
-                },
-                "status": {
-                    "type": "string"
-                },
-                "txid": {
-                    "type": "string"
-                }
-            }
-        },
-        "inport.TXConfirmation": {
-            "type": "object",
-            "properties": {
-                "metadata": {
-                    "type": "string"
-                },
-                "status": {
-                    "type": "string"
-                },
-                "txid": {
+                "transactionType": {
                     "type": "string"
                 }
             }

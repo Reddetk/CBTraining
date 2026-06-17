@@ -34,12 +34,6 @@
                     }
                 ],
                 "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/inport.TXConfirmation"
-                        }
-                    },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
@@ -108,6 +102,10 @@
         },
         "inport.PaymentAccountDTO": {
             "type": "object",
+            "required": [
+                "accCurency",
+                "iban"
+            ],
             "properties": {
                 "accCurency": {
                     "type": "string"
@@ -123,7 +121,7 @@
                 "creditorAccount": {
                     "$ref": "#/definitions/inport.PaymentAccountDTO"
                 },
-                "debitorAccount": {
+                "debtorAccount": {
                     "$ref": "#/definitions/inport.PaymentAccountDTO"
                 },
                 "metadata": {
@@ -139,6 +137,12 @@
         },
         "inport.PaymentPartyDTO": {
             "type": "object",
+            "required": [
+                "bic",
+                "contryOfResidence",
+                "name",
+                "role"
+            ],
             "properties": {
                 "bic": {
                     "type": "string"
@@ -156,6 +160,16 @@
         },
         "inport.PaymentRequest": {
             "type": "object",
+            "required": [
+                "amount",
+                "creditor",
+                "creditorPacc",
+                "currency",
+                "debtor",
+                "debtorPacc",
+                "endToEndIdentification",
+                "transactionType"
+            ],
             "properties": {
                 "amount": {
                     "type": "string"
@@ -169,36 +183,16 @@
                 "currency": {
                     "type": "string"
                 },
-                "debitor": {
+                "debtor": {
                     "$ref": "#/definitions/inport.PaymentPartyDTO"
                 },
-                "debitorPacc": {
+                "debtorPacc": {
                     "$ref": "#/definitions/inport.PaymentAccountDTO"
                 },
                 "endToEndIdentification": {
                     "type": "string"
                 },
-                "metadata": {
-                    "type": "string"
-                },
-                "status": {
-                    "type": "string"
-                },
-                "txid": {
-                    "type": "string"
-                }
-            }
-        },
-        "inport.TXConfirmation": {
-            "type": "object",
-            "properties": {
-                "metadata": {
-                    "type": "string"
-                },
-                "status": {
-                    "type": "string"
-                },
-                "txid": {
+                "transactionType": {
                     "type": "string"
                 }
             }

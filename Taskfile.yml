@@ -1,0 +1,153 @@
+version: '3'
+
+vars:
+  ENV: '{{default "local" .ENV}}'
+  MIGRATIONS: ./migrations
+
+dotenv: ['.env.{{.ENV}}']
+
+tasks:
+
+  # ----------- dev lifecycle
+
+  dev:
+    desc: "local: infra → migrate → swagger → go run server"
+    cmds:
+      - task: infra-up       
+      - task: migrate-up
+      - task: swagger
+      - task: dev-run
+
+  dev-run:
+    desc: "Run server with 'go run' (requires infra running)"
+    cmds:
+      - go run ./cmd/server
+
+  # ----------- test
+
+  test:
+    desc: "test: docker infra -> migrate -> docker server"
+    cmds:
+      - task: infra-up
+      - task: migrate-up
+      - task: server-up
+
+
+  # ----------- build
+
+  build:
+    desc: Compile server and migrate binaries
+    cmds:
+      - go build -o bin/migrate.exe ./cmd/migrate
+      - go build -o bin/server.exe  ./cmd/server
+
+  build-stub:
+    desc: Compile stub exe
+    cmds:
+      - go build -o bin/ProcessService.exe ./ProcessService/main.go
+
+  build-all:                          
+    desc: Compile server, migrate and stub binaries
+    cmds:
+      - task: build
+      - task: build-stub
+
+  #------------ build-migration
+
+  build-migration:
+    desc: Compile migrate binaries
+    cmds:
+      - go build -o bin/migrate.exe ./cmd/migrate
+
+  # ----------- migrations
+  migrate-up:
+    deps: [build-migration]
+    cmds:
+      - bin/migrate.exe -path {{.MIGRATIONS}} -database "postgres://$DB_USER:$DB_PASS@$DB_HOST:$DB_PORT/$DB_NAME?sslmode=$DB_SSL" -cmd up
+
+  migrate-down:
+    desc: Roll back last migration
+    deps: [build-migration]
+    cmds:
+      - bin/migrate.exe -path {{.MIGRATIONS}} -database "postgres://$DB_USER:$DB_PASS@$DB_HOST:$DB_PORT/$DB_NAME?sslmode=$DB_SSL" -cmd down
+
+  migrate-force:
+    desc: "Force migration version (usage: task migrate-force VERSION=1)"
+    deps: [build-migration]
+    cmds:
+      - bin/migrate.exe -path {{.MIGRATIONS}} -database "postgres://$DB_USER:$DB_PASS@$DB_HOST:$DB_PORT/$DB_NAME?sslmode=$DB_SSL" -cmd force -version {{.VERSION}}
+  # ----------- swagger
+
+  swagger:
+    desc: Generate docs/ from annotations in cmd/server/main.go
+    cmds:
+      - swag init -g cmd/server/main.go -o docs/
+
+  # ----------- run
+
+  run:
+    desc: "Start payment-service binary (deployment/testing with binary)"
+    deps: [build]
+    cmds:
+      - bin/server.exe
+
+  # ----------- stub (local, без докера)
+
+  stub-run:                           
+    desc: "Run stub locally (usage: task stub-run BROKERS=localhost:9092)"
+    deps: [build-stub]
+    cmds:
+      - bin/ProcessService.exe
+          -brokers     {{default "localhost:9092" .BROKERS}}
+          -topic-request  {{default "payment.processing.request"  .TOPIC_REQ}}
+          -topic-response {{default "payment.processing.response" .TOPIC_RESP}}
+          -failure-rate   {{default "0.10" .FAILURE_RATE}}
+          -delay-min      {{default "2"    .DELAY_MIN}}
+          -delay-max      {{default "7"    .DELAY_MAX}}
+
+  stub-logs:                          
+    desc: Tail stub container logs
+    cmds:
+      - docker-compose --env-file .env.{{.ENV}} logs -f stub
+
+  # -----------server
+
+  server-up:
+    desc: "Starting server container"
+    cmds:
+      - docker-compose --env-file .env.{{.ENV}} up -d --build server
+
+  # ----------- infra
+
+  infra-up:
+    desc: "Start infrastructure containers (Postgres + Kafka + Stub)"
+    cmds:
+      - docker-compose --env-file .env.{{.ENV}} up -d --build postgres kafka stub
+  infra-down:
+    desc: Stop infrastructure containers
+    cmds:
+      - docker-compose --env-file .env.{{.ENV}} down
+
+  # ----------- docker (full)
+
+  docker-up:
+    desc: "Full Docker environment: infra + migrate + server (ENV=test|staging)"
+    cmds:
+      - docker-compose --env-file .env.{{.ENV}} up --build
+
+  docker-down:
+    desc: Stop and remove all Docker containers
+    cmds:
+      - docker-compose --env-file .env.{{.ENV}} down
+
+  # ----------- test TODO
+
+  # test:
+  # test-integration:
+
+  # ----------- clean
+
+  clean:
+    desc: Remove build artifacts
+    cmds:
+      - rm -rf bin/ coverage.out

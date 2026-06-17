@@ -1,7 +1,13 @@
-.env*
-.env
+.env.local
+.env.test
+.env.staging
 *.env
 
 *.drawio
 
 helper
+
+/bin
+
+BUILD_RULES.md
+TEST_IMPLEMENTATION_PLAN.md
