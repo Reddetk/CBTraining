@@ -37,15 +37,11 @@ func NewPaymentManagerService(
 		dispatcher:  disp,
 		log:         log,
 	}
-	err := PayManServ.pandingRecovery(context.Background())
-	if err != nil {
-		return nil, err
-	}
 	PayManServ.log.Info("new pay manager server started")
 	return PayManServ, nil
 }
 
-func (ps *PaymentManagerService) pandingRecovery(ctx context.Context) error {
+func (ps *PaymentManagerService) PandingRecovery(ctx context.Context) error {
 	TXrecs, err := ps.pandRepo.LoadPendingPayments(ctx)
 	if err != nil {
 		ps.log.Error(err.Error())
@@ -200,6 +196,7 @@ func (ps *PaymentManagerService) add(tx *entity.PaymentTX) error {
 
 	select {
 	case g.Ch <- tx:
+		g.Wg.Add(1)
 		return nil
 	case <-ps.dispatcher.RootCtx.Done():
 		return corerr.ErrDispatcherShuting
@@ -218,8 +215,10 @@ func (ps *PaymentManagerService) runWorker(g *entity.Group) {
 			if err != nil {
 				ps.log.Error(err.Error())
 			}
+			g.Wg.Done()
 		case <-g.GrCtx.Done():
 			if g.Merging.Load() {
+				ps.log.Info("_____________WAIT______________")
 				close(g.DrainReady)
 				return
 			}
@@ -230,6 +229,7 @@ func (ps *PaymentManagerService) runWorker(g *entity.Group) {
 					if err != nil {
 						ps.log.Error(err.Error())
 					}
+					g.Wg.Done()
 				default:
 					return
 				}

@@ -41,7 +41,7 @@ func NewPaymentTX(
 func genTXID() string {
 	u, _ := uuid.NewRandom()
 
-	return u.String()
+	return u.String()[:34]
 }
 
 func NewPaymentTXFromDTO(pReq inport.PaymentRequest) (*PaymentTX, error) {

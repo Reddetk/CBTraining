@@ -23,10 +23,31 @@ tasks:
     cmds:
       - go run ./cmd/server
 
-  # ----------- test
+  # ----------- test lifecycle
 
   test:
-    desc: "test: docker infra -> migrate -> docker server"
+    desc: "local: infra → migrate → swagger → go run server"
+    cmds:
+      - task: infra-up       
+      - task: migrate-up
+      - task: swagger
+      - task: unitest-run
+      - task: dev-run
+
+  unitest-run:
+    desc: "Run server with 'go run' (requires infra running)"
+    cmds:
+      - go test -tags=testing ./core  -v
+
+  mantest-run:
+    desc: "Generate and send curl request"
+    cmds:
+      - go run ./Test/main.go
+
+  # ----------- test
+
+  up:
+    desc: "up: docker infra -> migrate -> docker server"
     cmds:
       - task: infra-up
       - task: migrate-up

@@ -3,6 +3,7 @@ package valobj
 
 import (
 	"encoding/json"
+	"fmt"
 	"regexp"
 	"time"
 
@@ -38,10 +39,10 @@ func NewMetadata(input string) (Metadata, error) {
 	var mt Metadata
 	err := json.Unmarshal([]byte(input), &mt)
 	if err != nil {
-		return Metadata{}, corerr.ErrMetadataNotValid
+		return Metadata{}, fmt.Errorf("%w - '%s'", corerr.ErrMetadataNotValid, input)
 	}
 	if mt.UpdatedAt.Before(mt.CreatedAt) {
-		return Metadata{}, corerr.ErrMetadataUpdatedBeforeCreated
+		return Metadata{}, fmt.Errorf("%w - '%s'", corerr.ErrMetadataUpdatedBeforeCreated, input)
 	}
 
 	return mt, nil

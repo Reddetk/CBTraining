@@ -10,10 +10,16 @@ To start the service via `go run` - localy:
 task dev
 ```
 
-To run the service in a fully container mode:
+To run the tests mode:
 
 ```bash
 task test
+```
+
+To run the service in a fully container mode:
+
+```bash
+task up
 ```
 
 ## API Examples
