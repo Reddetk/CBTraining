@@ -11,6 +11,7 @@ import (
 	"sync"
 	"time"
 
+	valobj "github.com/Reddetk/CBTraining/core/valObj"
 	"github.com/Reddetk/CBTraining/logger"
 	outport "github.com/Reddetk/CBTraining/ports/outports"
 )
@@ -21,11 +22,14 @@ import (
 
 // ProcessRecord хранит информацию о обработанном платеже для анализа
 type ProcessRecord struct {
-	ETE       string        // ETE транзакции
-	StartTime time.Time     // Время начала обработки
-	EndTime   time.Time     // Время окончания обработки
-	Duration  time.Duration // Длительность обработки
-	Error     error         // Ошибка обработки, если была
+	ETE          string        // ETE транзакции
+	StartTime    time.Time     // Время начала обработки
+	EndTime      time.Time     // Время окончания обработки
+	Duration     time.Duration // Длительность обработки
+	Error        error         // Ошибка обработки, если была
+	DebtorIBAN   string
+	CreditorIBAN string
+	Status       string
 }
 
 // MockPaymentProcessor имитирует обработку платежей с контролируемой задержкой
@@ -47,8 +51,11 @@ func NewMockPaymentProcessor(delay time.Duration) *MockPaymentProcessor {
 // ProcessTX имитирует обработку платежа
 func (m *MockPaymentProcessor) ProcessTX(ctx context.Context, req outport.TXRequest) error {
 	record := &ProcessRecord{
-		ETE:       req.EndToEndIdentification,
-		StartTime: time.Now(),
+		ETE:          req.EndToEndIdentification,
+		StartTime:    time.Now(),
+		DebtorIBAN:   req.DebtorIBAN,
+		CreditorIBAN: req.CreditorIBAN,
+		Status:       string(valobj.Processing),
 	}
 
 	// Имитируем обработку с задержкой
@@ -60,6 +67,7 @@ func (m *MockPaymentProcessor) ProcessTX(ctx context.Context, req outport.TXRequ
 
 	record.EndTime = time.Now()
 	record.Duration = record.EndTime.Sub(record.StartTime)
+	record.Status = string(valobj.Completed)
 
 	m.mu.Lock()
 	m.processed = append(m.processed, record)
@@ -102,24 +110,27 @@ func NewMockPendingRepo() *MockPendingRepo {
 	}
 }
 
-const pandRecTXsCount = 2
+// const pandRecTXsCount = 1
 
-// LoadPendingPayments загружает отложенные платежи
+// // LoadPendingPayments загружает отложенные платежи
+// func (m *MockPendingRepo) LoadPendingPayments(ctx context.Context) ([]outport.TXRecord, error) {
+// 	m.mu.Lock()
+// 	defer m.mu.Unlock()
+
+// 	_, blds := BuildDependentChain(pandRecTXsCount)
+// 	pTxRecs := make([]outport.TXRecord, 0, pandRecTXsCount)
+
+// 	for _, bld := range blds {
+// 		pTxRec := bld.BuiderToTXrec()
+// 		pTxRecs = append(pTxRecs, pTxRec)
+// 	}
+
+// 	m.isLoaded = true
+// 	return pTxRecs, nil
+// }
+
 func (m *MockPendingRepo) LoadPendingPayments(ctx context.Context) ([]outport.TXRecord, error) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-
-	_, blds := BuildDependentChain(pandRecTXsCount)
-	pTxRecs := make([]outport.TXRecord, pandRecTXsCount)
-
-	for _, bld := range blds {
-		pTxRec := bld.BuiderToTXrec()
-		pTxRecs = append(pTxRecs, pTxRec)
-	}
-
-	m.isLoaded = true
-	copy(pTxRecs, m.pending)
-	return pTxRecs, nil
+	return []outport.TXRecord{}, nil
 }
 
 // SetLoadError устанавливает ошибку для LoadPendingPayments

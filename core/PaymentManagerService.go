@@ -54,7 +54,7 @@ func (ps *PaymentManagerService) pandingRecovery(ctx context.Context) error {
 	for _, TXrec := range TXrecs {
 		tx, err := entity.RecoverPaymentTXFromRec(TXrec)
 		if err != nil {
-			ps.log.Error(err.Error())
+			ps.log.Error("error of recover pay TX from rec", zap.Error(err))
 			continue
 		}
 		if err := ps.add(tx); err != nil {
@@ -112,7 +112,6 @@ func (ps *PaymentManagerService) add(tx *entity.PaymentTX) error {
 
 	switch {
 	case gA == nil && gB == nil:
-		ps.log.Info("all nil", zap.String("ETE", tx.EndToEndIdentification.Identification))
 		ps.dispatcher.Mu.Unlock()
 		select {
 		case ps.dispatcher.Semaphore <- struct{}{}:
@@ -124,7 +123,7 @@ func (ps *PaymentManagerService) add(tx *entity.PaymentTX) error {
 		gA = ps.dispatcher.IbanToGroup[tx.CredIBAN()]
 		gB = ps.dispatcher.IbanToGroup[tx.DebIBAN()]
 		if gA != nil || gB != nil {
-			ps.log.Info("but already cred or deb inited", zap.String("ETE", tx.EndToEndIdentification.Identification))
+			ps.log.Info("add to group", zap.String("ETE", tx.EndToEndIdentification.Identification))
 			g = gA
 			if g == nil {
 				g = gB
@@ -134,7 +133,7 @@ func (ps *PaymentManagerService) add(tx *entity.PaymentTX) error {
 
 			<-ps.dispatcher.Semaphore
 		} else {
-			ps.log.Info("exactly all nil", zap.String("ETE", tx.EndToEndIdentification.Identification))
+			ps.log.Info("New Group", zap.String("ETE", tx.EndToEndIdentification.Identification))
 			g = entity.NewGroup(ps.dispatcher.RootCtx)
 			ps.dispatcher.IbanToGroup[tx.DebIBAN()] = g
 			ps.dispatcher.IbanToGroup[tx.CredIBAN()] = g
@@ -144,32 +143,28 @@ func (ps *PaymentManagerService) add(tx *entity.PaymentTX) error {
 		ps.dispatcher.Mu.Unlock()
 
 	case gA != nil && gB == nil:
-		ps.log.Info("creditor IBAN is alredy taken", zap.String("ETE", tx.EndToEndIdentification.Identification))
 		g = gA
 		ps.dispatcher.IbanToGroup[tx.DebIBAN()] = g
-		ps.log.Info("connect curent tx depIBAN to existed group and map", zap.String("ETE", tx.EndToEndIdentification.Identification))
+		ps.log.Info("connect to group", zap.String("ETE", tx.EndToEndIdentification.Identification))
 		ps.dispatcher.Mu.Unlock()
 
 	case gA == nil && gB != nil:
-		ps.log.Info("debtor IBAN is alredy taken", zap.String("ETE", tx.EndToEndIdentification.Identification))
 		g = gB
 		ps.dispatcher.IbanToGroup[tx.CredIBAN()] = g
-		ps.log.Info("connect curent tx credIBAN to existed group and map", zap.String("ETE", tx.EndToEndIdentification.Identification))
+		ps.log.Info("connect to group", zap.String("ETE", tx.EndToEndIdentification.Identification))
 		ps.dispatcher.Mu.Unlock()
 
 	case gA == gB:
-		ps.log.Info("creditor and deb IBAN is alredy taken", zap.String("ETE", tx.EndToEndIdentification.Identification))
+		ps.log.Info("connect to group", zap.String("ETE", tx.EndToEndIdentification.Identification))
 		g = gA
 		ps.dispatcher.Mu.Unlock()
 
 	default:
 
-		ps.log.Info("---------MERGE------", zap.String("ETE", tx.EndToEndIdentification.Identification))
+		ps.log.Info("MERGE ", zap.String("ETE", tx.EndToEndIdentification.Identification))
 		g = gA
 		gB.Merging.Store(true)
 
-		// Переключаем карту НЕМЕДЛЕННО, пока держим лок.
-		// С этого момента никто новый не найдёт gB через lookup.
 		for iban, grp := range ps.dispatcher.IbanToGroup {
 			if grp == gB {
 				ps.dispatcher.IbanToGroup[iban] = gA
@@ -179,14 +174,12 @@ func (ps *PaymentManagerService) add(tx *entity.PaymentTX) error {
 		gB.WorkerCancelSig()
 		ps.dispatcher.Mu.Unlock()
 
-		// Теперь ждём, пока воркер gB добровольно перестанет читать gB.Ch
 		select {
 		case <-gB.DrainReady:
 		case <-ps.dispatcher.RootCtx.Done():
 			return corerr.ErrDispatcherShuting
 		}
 
-		// Drain буфера — но карта уже верна, новых записей в gB.Ch не будет
 		ps.dispatcher.Mu.Lock()
 	drain:
 		for {
@@ -205,7 +198,6 @@ func (ps *PaymentManagerService) add(tx *entity.PaymentTX) error {
 		ps.dispatcher.Mu.Unlock()
 	}
 
-	// Неблокирующая отправка с учётом shutdown
 	select {
 	case g.Ch <- tx:
 		return nil

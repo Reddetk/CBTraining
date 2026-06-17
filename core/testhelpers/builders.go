@@ -19,6 +19,7 @@ import (
 // Используется паттерн Builder для улучшения читаемости тестов
 type PaymentBuilder struct {
 	TXID                  string
+	Status                string
 	debPartyBIC           string
 	debPartyname          string
 	debtorIBAN            string
@@ -113,6 +114,7 @@ func NewPaymentBuilder() *PaymentBuilder {
 		TXID:                  genTXID(),
 		debtorIBAN:            genIBAN(),
 		creditorIBAN:          genIBAN(),
+		Status:                string(valobj.Pending),
 		amount:                "300.00",
 		currency:              "EUR",
 		txType:                "001",
@@ -168,6 +170,7 @@ func PayreqToTXreq(preq *inport.PaymentRequest, txid string, meta valobj.Metadat
 	return &outport.TXRequest{
 		TXID:                   txid,
 		Amount:                 am,
+		Status:                 string(valobj.Pending),
 		Currency:               preq.Currency,
 		EndToEndIdentification: preq.EndToEndIdentification,
 		TransactionType:        preq.TransactionType,
@@ -183,6 +186,7 @@ func (preq *PaymentBuilder) BuiderToTXrec() outport.TXRecord {
 		Amount:                 preq.amount,
 		Currency:               preq.currency,
 		EndToEndIdentification: preq.endToEndIdentificator,
+		Status:                 preq.Status,
 		TransactionType:        preq.txType,
 		DebtorPacc: &outport.PARecord{
 			IBAN:       preq.debtorIBAN,
