@@ -1,9 +1,6 @@
 package entity
 
 import (
-	"fmt"
-	"time"
-
 	valobj "github.com/Reddetk/CBTraining/core/valObj"
 	inport "github.com/Reddetk/CBTraining/ports/inports"
 	outport "github.com/Reddetk/CBTraining/ports/outports"
@@ -42,12 +39,9 @@ func NewPaymentTX(
 }
 
 func genTXID() string {
-	date := time.Now().UTC().Format("20060102")
+	u, _ := uuid.NewRandom()
 
-	u := uuid.New().String()
-	suffix := u[9:17]
-
-	return fmt.Sprintf("TX-%s-%s", date, suffix)
+	return u.String()
 }
 
 func NewPaymentTXFromDTO(pReq inport.PaymentRequest) (*PaymentTX, error) {

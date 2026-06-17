@@ -6,6 +6,7 @@ package testhelpers
 import (
 	"context"
 	"fmt"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -16,28 +17,6 @@ import (
 // ============================================================================
 // СИНХРОНИЗАЦИЯ И ОЖИДАНИЕ
 // ============================================================================
-
-// WaitForGroupCount ждёт пока в dispatcher'е появится N групп
-func WaitForGroupCount(t *testing.T, d *entity.Dispatcher, expected int, timeout time.Duration) bool {
-	deadline := time.Now().Add(timeout)
-
-	for {
-		d.Mu.Lock()
-		current := len(d.IbanToGroup)
-		d.Mu.Unlock()
-
-		if current == expected {
-			return true
-		}
-
-		if time.Now().After(deadline) {
-			t.Logf("timeout waiting for %d groups, got %d", expected, current)
-			return false
-		}
-
-		time.Sleep(10 * time.Millisecond)
-	}
-}
 
 // WaitForProcessedCount ждёт пока mock processor обработает N платежей
 func WaitForProcessedCount(t *testing.T, m *MockPaymentProcessor, expected int, timeout time.Duration) bool {
@@ -95,36 +74,9 @@ func AssertTimeDiffWithinPercent(t *testing.T, time1, time2 time.Duration, perce
 	}
 }
 
-// MeasureLatency измеряет время выполнения функции
-func MeasureLatency(fn func()) time.Duration {
-	start := time.Now()
-	fn()
-	return time.Since(start)
-}
-
 // ============================================================================
 // АНАЛИЗ ПОРЯДКА ОБРАБОТКИ
 // ============================================================================
-
-// VerifyProcessingOrder проверяет что TX обработаны в ожидаемом порядке (FIFO)
-func VerifyProcessingOrder(t *testing.T, m *MockPaymentProcessor, expectedOrder []string) bool {
-	actual := m.GetProcessedOrder()
-	t.Log("actual - ", actual)
-	t.Log("expected - ", expectedOrder)
-	if len(actual) != len(expectedOrder) {
-		t.Errorf("processing order length mismatch: expected %d, got %d", len(expectedOrder), len(actual))
-		return false
-	}
-
-	for i, expected := range expectedOrder {
-		if actual[i] != expected {
-			t.Errorf("processing order mismatch at position %d: expected %q, got %q", i, expected, actual[i])
-			return false
-		}
-	}
-
-	return true
-}
 
 // VerifyStartAfterEnd проверяет что tx2 начал обработку только ПОСЛЕ завершения tx1
 func VerifyStartAfterEnd(t *testing.T, m *MockPaymentProcessor, ETE1, ETE2 string, maxGap time.Duration) bool {
@@ -259,6 +211,102 @@ func VerifyIBANInDifferentGroups(t *testing.T, d *entity.Dispatcher, ibans []str
 // ============================================================================
 // ВСПОМОГАТЕЛЬНЫЕ УТИЛИТЫ
 // ============================================================================
+func (m *MockPaymentProcessor) VisualizeTime(log *MockLogger) {
+	processed := m.GetProcessed()
+	if len(processed) == 0 {
+		log.Info("VisualizeTime: no processed payments")
+		return
+	}
+
+	// Находим временные границы
+	minT := processed[0].StartTime
+	maxT := processed[0].EndTime
+	for _, r := range processed {
+		if r.StartTime.Before(minT) {
+			minT = r.StartTime
+		}
+		if r.EndTime.After(maxT) {
+			maxT = r.EndTime
+		}
+	}
+
+	const width = 60 // ширина временной шкалы в символах
+	totalDur := maxT.Sub(minT)
+
+	// Строим поле: каждая строка — один платёж
+	type row struct {
+		label string
+		line  string
+	}
+
+	rows := make([]row, len(processed))
+	maxLabel := 0
+
+	for i, r := range processed {
+		label := fmt.Sprintf("#%d ETE:%-12s", i+1, r.ETE)
+		if len(label) > maxLabel {
+			maxLabel = len(label)
+		}
+
+		startOff := int(float64(r.StartTime.Sub(minT)) / float64(totalDur) * width)
+		endOff := int(float64(r.EndTime.Sub(minT)) / float64(totalDur) * width)
+		if endOff <= startOff {
+			endOff = startOff + 1
+		}
+
+		bar := make([]byte, width)
+		for j := range bar {
+			bar[j] = ' '
+		}
+		// Зона ожидания (от 0 до start)
+		for j := 0; j < startOff && j < width; j++ {
+			bar[j] = '·'
+		}
+		// Зона выполнения
+		char := byte('=')
+		if r.Error != nil {
+			char = '+'
+		}
+		for j := startOff; j < endOff && j < width; j++ {
+			bar[j] = char
+		}
+
+		suffix := fmt.Sprintf(" +%dms", r.Duration.Milliseconds())
+		if r.Error != nil {
+			suffix += " ERR"
+		}
+
+		rows[i] = row{
+			label: label,
+			line:  string(bar) + suffix,
+		}
+	}
+
+	// Шапка с временно́й шкалой
+	header := fmt.Sprintf("%*s  |", maxLabel, "")
+	ticks := "0ms"
+	mid := fmt.Sprintf("%dms", totalDur.Milliseconds()/2)
+	end := fmt.Sprintf("%dms", totalDur.Milliseconds())
+	scale := fmt.Sprintf("%-*s%s%*s", width/3, ticks, mid, width-width/3-len(mid)-len(end)+len(end), end)
+
+	separator := fmt.Sprintf("%s--+-%s", strings.Repeat("-", maxLabel), strings.Repeat("-", width+12))
+
+	log.Info("=== Payment Timeline ===")
+	log.Info(header + scale)
+	log.Info(separator)
+
+	for _, r := range rows {
+		log.Info(fmt.Sprintf("%-*s  | %s", maxLabel, r.label, r.line))
+	}
+
+	log.Info(separator)
+
+	// Итоговая статистика
+	log.Info(fmt.Sprintf("Total time: %dms | Payments: %d",
+		totalDur.Milliseconds(),
+		len(processed),
+	))
+}
 
 // CreateContextWithTimeout создаёт context с timeout'ом
 func CreateContextWithTimeout(timeout time.Duration) (context.Context, context.CancelFunc) {
@@ -294,16 +342,6 @@ func DebugDispatcherState(d *entity.Dispatcher) string {
 		len(d.IbanToGroup),
 		len(uniqueGroups),
 	)
-}
-
-// DebugProcessedRecords выводит информацию о обработанных TX'ах
-func DebugProcessedRecords(m *MockPaymentProcessor) string {
-	records := m.GetProcessed()
-	if len(records) == 0 {
-		return "No processed records"
-	}
-
-	return fmt.Sprintf("Processed %d records: %v", len(records), m.GetProcessedOrder())
 }
 
 // WaitGroupAsync запускает функции асинхронно и ждёт их завершения

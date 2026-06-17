@@ -29,7 +29,7 @@ func ValRole(s string) (Role, error) {
 
 // Metadata represents creation/update timestamps -------------
 type Metadata struct {
-	СreatedAt time.Time `json:"created_at"` // Unix RFC3339 timestamp in milliseconds
+	CreatedAt time.Time `json:"created_at"` // Unix RFC3339 timestamp in milliseconds
 	UpdatedAt time.Time `json:"updated_at"` // Unix RFC3339 timestamp in milliseconds
 }
 
@@ -40,7 +40,7 @@ func NewMetadata(input string) (Metadata, error) {
 	if err != nil {
 		return Metadata{}, corerr.ErrMetadataNotValid
 	}
-	if mt.UpdatedAt.Before(mt.СreatedAt) {
+	if mt.UpdatedAt.Before(mt.CreatedAt) {
 		return Metadata{}, corerr.ErrMetadataUpdatedBeforeCreated
 	}
 
@@ -49,13 +49,13 @@ func NewMetadata(input string) (Metadata, error) {
 
 // NewMetadataNow creates Metadata with current time for both timestamps
 func NewMetadataNow() Metadata {
-	return Metadata{СreatedAt: time.Now().UTC(), UpdatedAt: time.Now()}
+	return Metadata{CreatedAt: time.Now().UTC(), UpdatedAt: time.Now()}
 }
 
 // Touch returns new Metadata with updated updatedAt -- immutable update
 func (m Metadata) Touch() Metadata {
 	return Metadata{
-		СreatedAt: m.СreatedAt,
+		CreatedAt: m.CreatedAt,
 		UpdatedAt: time.Now(),
 	}
 }

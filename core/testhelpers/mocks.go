@@ -7,6 +7,7 @@ package testhelpers
 
 import (
 	"context"
+	"fmt"
 	"sync"
 	"time"
 
@@ -20,13 +21,11 @@ import (
 
 // ProcessRecord хранит информацию о обработанном платеже для анализа
 type ProcessRecord struct {
-	ETE          string        // ETE транзакции
-	StartTime    time.Time     // Время начала обработки
-	EndTime      time.Time     // Время окончания обработки
-	Duration     time.Duration // Длительность обработки
-	GorutineID   uint64        // ID горутины воркера
-	Error        error         // Ошибка обработки, если была
-	ProcessOrder int64         // Порядковый номер обработки (для FIFO проверок)
+	ETE       string        // ETE транзакции
+	StartTime time.Time     // Время начала обработки
+	EndTime   time.Time     // Время окончания обработки
+	Duration  time.Duration // Длительность обработки
+	Error     error         // Ошибка обработки, если была
 }
 
 // MockPaymentProcessor имитирует обработку платежей с контролируемой задержкой
@@ -48,10 +47,8 @@ func NewMockPaymentProcessor(delay time.Duration) *MockPaymentProcessor {
 // ProcessTX имитирует обработку платежа
 func (m *MockPaymentProcessor) ProcessTX(ctx context.Context, req outport.TXRequest) error {
 	record := &ProcessRecord{
-		ETE:          req.EndToEndIdentification,
-		StartTime:    time.Now(),
-		ProcessOrder: 0, // заполним позже
-		GorutineID:   0,
+		ETE:       req.EndToEndIdentification,
+		StartTime: time.Now(),
 	}
 
 	// Имитируем обработку с задержкой
@@ -65,38 +62,24 @@ func (m *MockPaymentProcessor) ProcessTX(ctx context.Context, req outport.TXRequ
 	record.Duration = record.EndTime.Sub(record.StartTime)
 
 	m.mu.Lock()
-	record.ProcessOrder = int64(len(m.processed) + 1)
 	m.processed = append(m.processed, record)
 	m.mu.Unlock()
 
 	return record.Error
 }
 
-// GetProcessed возвращает копию всех обработанных записей
 func (m *MockPaymentProcessor) GetProcessed() []*ProcessRecord {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	result := make([]*ProcessRecord, len(m.processed))
-	copy(result, m.processed)
-	return result
+
+	return m.processed
 }
 
-// GetProcessedCount возвращает количество обработанных TX
 func (m *MockPaymentProcessor) GetProcessedCount() int {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	return len(m.processed)
-}
 
-// GetProcessedOrder возвращает список EndToEndIdentification в порядке обработки
-func (m *MockPaymentProcessor) GetProcessedOrder() []string {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	result := make([]string, len(m.processed))
-	for i, rec := range m.processed {
-		result[i] = rec.ETE
-	}
-	return result
+	return len(m.processed)
 }
 
 // ============================================================================
@@ -119,28 +102,24 @@ func NewMockPendingRepo() *MockPendingRepo {
 	}
 }
 
+const pandRecTXsCount = 2
+
 // LoadPendingPayments загружает отложенные платежи
 func (m *MockPendingRepo) LoadPendingPayments(ctx context.Context) ([]outport.TXRecord, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	if m.loadErr != nil {
-		return nil, m.loadErr
-	}
-	m.isLoaded = true
-	result := make([]outport.TXRecord, len(m.pending))
-	copy(result, m.pending)
-	return result, nil
-}
 
-// SavePendingPayment сохраняет отложенный платёж
-func (m *MockPendingRepo) SavePendingPayment(ctx context.Context, tx outport.TXRecord) error {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	if m.saveErr != nil {
-		return m.saveErr
+	_, blds := BuildDependentChain(pandRecTXsCount)
+	pTxRecs := make([]outport.TXRecord, pandRecTXsCount)
+
+	for _, bld := range blds {
+		pTxRec := bld.BuiderToTXrec()
+		pTxRecs = append(pTxRecs, pTxRec)
 	}
-	m.pending = append(m.pending, tx)
-	return nil
+
+	m.isLoaded = true
+	copy(pTxRecs, m.pending)
+	return pTxRecs, nil
 }
 
 // SetLoadError устанавливает ошибку для LoadPendingPayments
@@ -188,7 +167,7 @@ func (m *MockPaymentRepo) GetTXByID(ctx context.Context, txID string) (*outport.
 		return nil, m.queryErr
 	}
 	if tx, exists := m.payments[txID]; exists {
-		return &tx, nil
+		return &tx, fmt.Errorf("such tx dose not exist, error of get")
 	}
 	return nil, nil
 }
@@ -199,6 +178,12 @@ func (m *MockPaymentRepo) PersistProcessResult(ctx context.Context, TXID, result
 	if m.insertErr != nil {
 		return m.insertErr
 	}
+	tx, exists := m.payments[TXID]
+	if !exists {
+		return fmt.Errorf("such tx dose not exist, eroor of persist")
+	}
+	tx.Status = result
+	m.payments[TXID] = tx
 	return nil
 }
 

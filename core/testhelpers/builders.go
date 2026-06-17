@@ -6,16 +6,19 @@ package testhelpers
 import (
 	"math/rand"
 	"strings"
+	"time"
 
 	valobj "github.com/Reddetk/CBTraining/core/valObj"
 	inport "github.com/Reddetk/CBTraining/ports/inports"
 	outport "github.com/Reddetk/CBTraining/ports/outports"
+	"github.com/google/uuid"
 	"github.com/shopspring/decimal"
 )
 
 // PaymentBuilder позволяет удобно создавать тестовые платежи
 // Используется паттерн Builder для улучшения читаемости тестов
 type PaymentBuilder struct {
+	TXID                  string
 	debPartyBIC           string
 	debPartyname          string
 	debtorIBAN            string
@@ -31,6 +34,12 @@ type PaymentBuilder struct {
 	txType                string
 	endToEndIdentificator string
 	metadata              valobj.Metadata
+}
+
+func genTXID() string {
+	u, _ := uuid.NewRandom()
+
+	return u.String()
 }
 
 func genIBAN() string {
@@ -101,6 +110,7 @@ func genPartyName() string {
 // NewPaymentBuilder создаёт новый builder с дефолтными значениями
 func NewPaymentBuilder() *PaymentBuilder {
 	return &PaymentBuilder{
+		TXID:                  genTXID(),
 		debtorIBAN:            genIBAN(),
 		creditorIBAN:          genIBAN(),
 		amount:                "300.00",
@@ -129,6 +139,30 @@ func (ps *PaymentBuilder) WithCreditor(IBAN string) *PaymentBuilder {
 	return ps
 }
 
+func GenMetadata() valobj.Metadata {
+	now := time.Now().UTC()
+
+	// Границы вчерашнего дня
+	yesterdayStart := now.AddDate(0, 0, -1).Truncate(24 * time.Hour)
+	yesterdayEnd := yesterdayStart.Add(24*time.Hour - time.Millisecond)
+
+	dayDuration := int64(24*time.Hour - time.Millisecond)
+
+	createdAt := yesterdayStart.Add(time.Duration(rand.Int63n(dayDuration))).Truncate(time.Millisecond)
+
+	// updatedAt — случайно после createdAt, но не позже конца вчерашнего дня
+	remaining := int64(yesterdayEnd.Sub(createdAt))
+	updatedAt := createdAt
+	if remaining > 0 {
+		updatedAt = createdAt.Add(time.Duration(rand.Int63n(remaining))).Truncate(time.Millisecond)
+	}
+
+	return valobj.Metadata{
+		CreatedAt: createdAt,
+		UpdatedAt: updatedAt,
+	}
+}
+
 func PayreqToTXreq(preq *inport.PaymentRequest, txid string, meta valobj.Metadata) *outport.TXRequest {
 	am, _ := decimal.NewFromString(preq.Amount)
 	return &outport.TXRequest{
@@ -140,6 +174,37 @@ func PayreqToTXreq(preq *inport.PaymentRequest, txid string, meta valobj.Metadat
 		DebtorIBAN:             preq.DebtorPacc.IBAN,
 		CreditorIBAN:           preq.CreditorPacc.IBAN,
 		Metadata:               meta.String(),
+	}
+}
+
+func (preq *PaymentBuilder) BuiderToTXrec() outport.TXRecord {
+	return outport.TXRecord{
+		TXID:                   preq.TXID,
+		Amount:                 preq.amount,
+		Currency:               preq.currency,
+		EndToEndIdentification: preq.endToEndIdentificator,
+		TransactionType:        preq.txType,
+		DebtorPacc: &outport.PARecord{
+			IBAN:       preq.debtorIBAN,
+			AccCurency: preq.debitorCur,
+			Party: &outport.PartyRecord{
+				BIC:               preq.debPartyBIC,
+				Role:              string(valobj.Debtor),
+				ContryOfResidence: preq.debtorContry,
+				Name:              preq.debPartyname,
+			},
+		},
+		CreditorPacc: &outport.PARecord{
+			IBAN:       preq.creditorIBAN,
+			AccCurency: preq.creditorCur,
+			Party: &outport.PartyRecord{
+				BIC:               preq.credPartyBIC,
+				Role:              string(valobj.Creditor),
+				ContryOfResidence: preq.creditorContry,
+				Name:              preq.credPartyName,
+			},
+		},
+		Metadata: preq.metadata.String(),
 	}
 }
 
