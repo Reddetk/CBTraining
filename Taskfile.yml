@@ -44,7 +44,7 @@ tasks:
     cmds:
       - go run ./Test/main.go
 
-  # ----------- test
+  # ----------- Up
 
   up:
     desc: "up: docker infra -> migrate -> docker server"

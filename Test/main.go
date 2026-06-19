@@ -129,14 +129,14 @@ func NewMetadata(input string) (Metadata, error) {
 
 // NewMetadataNow creates Metadata with current time for both timestamps
 func NewMetadataNow() Metadata {
-	return Metadata{CreatedAt: time.Now().UTC(), UpdatedAt: time.Now()}
+	return Metadata{CreatedAt: time.Now().UTC(), UpdatedAt: time.Now().UTC()}
 }
 
 // Touch returns new Metadata with updated updatedAt -- immutable update
 func (m Metadata) Touch() Metadata {
 	return Metadata{
 		CreatedAt: m.CreatedAt,
-		UpdatedAt: time.Now(),
+		UpdatedAt: time.Now().UTC(),
 	}
 }
 
@@ -419,10 +419,6 @@ func main() {
 		},
 	}
 
-	client := &http.Client{Timeout: 1 * time.Second}
-	_ = client // используется через http.Post (глобальный клиент)
-	// Если нужен кастомный клиент — заменить http.Post на client.Do(req)
-
 	// Собираем все платежи из всех конфигураций
 	type taggedRequest struct {
 		label string
@@ -452,4 +448,13 @@ func main() {
 
 	wg.Wait()
 	close(resultsCh)
+
+	// ← вот это отсутствует в твоём коде
+	for res := range resultsCh {
+		if res.err != nil {
+			fmt.Printf("[%s] #%d ERROR: %v\n", res.label, res.index, res.err)
+			continue
+		}
+		fmt.Printf("[%s] #%d → HTTP %d\n%s\n\n", res.label, res.index, res.statusCode, res.body)
+	}
 }
