@@ -4,6 +4,7 @@ package inport
 import "context"
 
 type PayManager interface {
+	PandingRecovery(ctx context.Context) error
 	PaymentCMD(ctx context.Context, requ *PaymentRequest) (*TXConfirmation, error)
 	StorePaymentResult(ctx context.Context, payRes *PaymentResult) error
 	Shutdown()

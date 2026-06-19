@@ -151,6 +151,11 @@ func main() {
 		}
 	}()
 
+	err = paymentManagerSvc.PandingRecovery(context.Background())
+	if err != nil {
+		log.Error("Panding recovery error", zap.Error(err))
+	}
+
 	// ===== 8. Запуск HTTP сервера =====
 	log.Info("starting HTTP server", zap.String("addr", cfg.HTTP.Addr))
 	go func() {

@@ -2,6 +2,7 @@ package entity
 
 import (
 	"context"
+	"sync"
 	"sync/atomic"
 
 	"github.com/Reddetk/CBTraining/core/consts"
@@ -39,20 +40,24 @@ type Group struct {
 
 	Merging    atomic.Bool
 	DrainReady chan struct{}
+	Wg         sync.WaitGroup // счётчик TX в группе
 }
 
 // NewGroup создаёт новую группу привязанную к жизненному циклу parent-контекста.
 // parent — это ctx диспетчера: когда диспетчер завершается,
 // все дочерние группы получают сигнал остановки автоматически.
 func NewGroup(parent context.Context) *Group {
-	// WithCancel даёт два рычага управления жизнью воркера:
-	//   ctx.Done()          — воркер слушает этот канал
-	//   workerCancelSig()   — Dispatcher дёргает при merge или shutdown
 	ctx, workerCancelSig := context.WithCancel(parent)
-	return &Group{
+	g := &Group{
 		Ch:              make(chan *PaymentTX, consts.ChanBuffer),
 		GrCtx:           ctx,
 		WorkerCancelSig: workerCancelSig,
 		DrainReady:      make(chan struct{}),
 	}
+	// Когда все TX обработаны — завершаем воркер
+	go func() {
+		g.Wg.Wait()
+		workerCancelSig()
+	}()
+	return g
 }

@@ -136,6 +136,11 @@ func (r *Repository) LoadPendingPayments(ctx context.Context) ([]outport.TXRecor
 		t.end_to_end_id,
 		t.transaction_type,
 
+		json_build_object(
+        'created_at', to_json(t.created_at),
+        'updated_at', to_json(t.updated_at)
+    	)::text AS metadata,
+
 		-- debtor pa_registry
 		dpa.iban,
 		dpa.account_currency,
@@ -185,6 +190,7 @@ func (r *Repository) LoadPendingPayments(ctx context.Context) ([]outport.TXRecor
 			&rec.Currency,
 			&rec.EndToEndIdentification,
 			&rec.TransactionType,
+			&rec.Metadata,
 
 			&debtor.IBAN,
 			&debtor.AccCurency,
