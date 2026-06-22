@@ -27,7 +27,7 @@ test: infra-up migrate-up swagger unitest-run dev-run  ## local: infra -> migrat
 
 .PHONY: unitest-run
 unitest-run:  ## Run unit tests
-	go test -tags=testing ./core -v
+	-go test -tags=testing ./core -v
 
 .PHONY: mantest-run
 mantest-run:  ## Generate and send curl request

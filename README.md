@@ -4,17 +4,48 @@
 
 ### Development
 
-To start the service via `go run` - localy:
+For cmd palitre:
+
+```bash
+task help
+```
+or
+
+```bash
+make help
+```
+
+To start the service via `go run` - localy(infra in docker):
 
 ```bash
 task dev
 ```
+or
 
-To run the tests mode:
+```bash
+make dev
+```
+
+To run the tests mode (dev + unit tests + manual testing automatization):
 
 ```bash
 task test
 ```
+or 
+```bash
+make test
+```
+
+After server started
+
+```bash
+task mantest-run
+```
+or
+```bash
+make mantest-run
+```
+
 
 To run the service in a fully container mode:
 
