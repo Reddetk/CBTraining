@@ -194,8 +194,8 @@ func AssertLiveness(t *testing.T, records []*ProcessRecord, submittedETEs []stri
 
 func WaitLiveness(t *testing.T, m *MockPaymentProcessor, submittedETEs []string, timeout time.Duration) bool {
 	t.Helper()
-	deadline := time.Now().Add(timeout)
-	for time.Now().Before(deadline) {
+	deadline := time.Now().UTC().Add(timeout)
+	for time.Now().UTC().Before(deadline) {
 		if len(CheckLiveness(m.GetProcessed(), submittedETEs)) == 0 {
 			return true
 		}

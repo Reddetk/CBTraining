@@ -50,14 +50,14 @@ func NewMetadata(input string) (Metadata, error) {
 
 // NewMetadataNow creates Metadata with current time for both timestamps
 func NewMetadataNow() Metadata {
-	return Metadata{CreatedAt: time.Now().UTC(), UpdatedAt: time.Now()}
+	return Metadata{CreatedAt: time.Now().UTC(), UpdatedAt: time.Now().UTC()}
 }
 
 // Touch returns new Metadata with updated updatedAt -- immutable update
 func (m Metadata) Touch() Metadata {
 	return Metadata{
 		CreatedAt: m.CreatedAt,
-		UpdatedAt: time.Now(),
+		UpdatedAt: time.Now().UTC(),
 	}
 }
 

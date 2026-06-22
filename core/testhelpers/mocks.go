@@ -52,7 +52,7 @@ func NewMockPaymentProcessor(delay time.Duration) *MockPaymentProcessor {
 func (m *MockPaymentProcessor) ProcessTX(ctx context.Context, req outport.TXRequest) error {
 	record := &ProcessRecord{
 		ETE:          req.EndToEndIdentification,
-		StartTime:    time.Now(),
+		StartTime:    time.Now().UTC(),
 		DebtorIBAN:   req.DebtorIBAN,
 		CreditorIBAN: req.CreditorIBAN,
 		Status:       string(valobj.Processing),
@@ -65,7 +65,7 @@ func (m *MockPaymentProcessor) ProcessTX(ctx context.Context, req outport.TXRequ
 		return ctx.Err()
 	}
 
-	record.EndTime = time.Now()
+	record.EndTime = time.Now().UTC()
 	record.Duration = record.EndTime.Sub(record.StartTime)
 	record.Status = string(valobj.Completed)
 
@@ -242,7 +242,7 @@ func (m *MockLogger) Info(msg string, fields ...logger.Field) {
 	entry := &LogEntry{
 		Level:     "info",
 		Message:   msg,
-		Timestamp: time.Now(),
+		Timestamp: time.Now().UTC(),
 		// копируем слайс, чтобы защититься от мутаций снаружи
 		Fields: append([]logger.Field(nil), fields...),
 	}
@@ -257,7 +257,7 @@ func (m *MockLogger) Error(msg string, fields ...logger.Field) {
 	entry := &LogEntry{
 		Level:     "error",
 		Message:   msg,
-		Timestamp: time.Now(),
+		Timestamp: time.Now().UTC(),
 		Fields:    append([]logger.Field(nil), fields...),
 	}
 	m.entries = append(m.entries, entry)
@@ -273,7 +273,7 @@ func (m *MockLogger) Warn(msg string, fields ...logger.Field) {
 	entry := &LogEntry{
 		Level:     "warn",
 		Message:   msg,
-		Timestamp: time.Now(),
+		Timestamp: time.Now().UTC(),
 		Fields:    append([]logger.Field(nil), fields...),
 	}
 	m.entries = append(m.entries, entry)
@@ -286,7 +286,7 @@ func (m *MockLogger) Debug(msg string, fields ...logger.Field) {
 	entry := &LogEntry{
 		Level:     "debug",
 		Message:   msg,
-		Timestamp: time.Now(),
+		Timestamp: time.Now().UTC(),
 		Fields:    append([]logger.Field(nil), fields...),
 	}
 	m.entries = append(m.entries, entry)
