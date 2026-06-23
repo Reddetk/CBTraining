@@ -2,6 +2,8 @@ package main
 
 import (
 	"context"
+	"errors"
+	nhttp "net/http"
 	"os"
 	"os/signal"
 	"syscall"
@@ -151,15 +153,19 @@ func main() {
 		}
 	}()
 
-	err = paymentManagerSvc.PandingRecovery(context.Background())
+	err = paymentManagerSvc.PandingRecovery(rootCtx)
 	if err != nil {
 		log.Error("Panding recovery error", zap.Error(err))
 	}
 
 	// ===== 8. Запуск HTTP сервера =====
-	log.Info("starting HTTP server", zap.String("addr", cfg.HTTP.Addr))
+	httpSrv := &nhttp.Server{
+		Addr:    cfg.HTTP.Addr,
+		Handler: ginEngine,
+	}
+
 	go func() {
-		if err := ginEngine.Run(cfg.HTTP.Addr); err != nil {
+		if err := httpSrv.ListenAndServe(); err != nil && !errors.Is(err, nhttp.ErrServerClosed) {
 			log.Error("HTTP server error", zap.Error(err))
 		}
 	}()
@@ -168,29 +174,26 @@ func main() {
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	sig := <-quit
-
 	log.Info("shutdown signal received", zap.String("signal", sig.String()))
 
-	// Timeout для graceful shutdown
 	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), cfg.Shutdown.Timeout)
 	defer shutdownCancel()
 
-	// 1. Останавливаем HTTP сервер — новые запросы не принимаем
+	// останавливаем HTTP — новые запросы не принимаем,
 	log.Info("shutting down HTTP server")
-	if err := ginEngine.Run(); err != nil {
-		log.Error("failed to close HTTP server", zap.Error(err))
+	if err := httpSrv.Shutdown(shutdownCtx); err != nil {
+		log.Error("HTTP server shutdown error", zap.Error(err))
 	}
 
-	// 2. Закрываем Kafka reader (producer тоже закроется через defer)
 	log.Info("closing Kafka consumer")
-	kafkaReader.Close()
+	_ = kafkaReader.Close()
 
-	// 3. Отменяем rootCtx — воркеры получат Done()
 	log.Info("cancelling root context")
 	cancel()
 
-	// 4. Ждём пока все компоненты завершатся
-	<-shutdownCtx.Done()
+	// 4. Ждём всех воркеров Dispatcher через Wg.Wait()
+	log.Info("waiting for all dispatcher workers")
+	paymentManagerSvc.Shutdown() // → ps.dispatcher.Wg.Wait()
 
 	log.Info("payment service stopped cleanly")
 }
